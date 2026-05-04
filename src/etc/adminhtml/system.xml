@@ -1,0 +1,178 @@
+<?xml version="1.0" ?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    <system>
+        <section id="carriers" sortOrder="1000" showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+            <group id="tradeaze" sortOrder="10" showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+                <label>Tradeaze</label>
+                <field id="active" type="select" sortOrder="10"
+                       showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+                    <label>Enabled</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="sort_order" type="text" sortOrder="20"
+                       showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+                    <label>Sort Order</label>
+                </field>
+                <field id="title" type="text" sortOrder="30"
+                       showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+                    <label>Main Shipping Carrier Title</label>
+                </field>
+                <field id="sallowspecific" type="select" sortOrder="40"
+                       showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+                    <label>Ship to Applicable Countries</label>
+                    <frontend_class>shipping-applicable-country</frontend_class>
+                    <source_model>Magento\Shipping\Model\Config\Source\Allspecificcountries</source_model>
+                </field>
+                <field id="specificcountry" type="multiselect" sortOrder="50"
+                       showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+                    <label>Ship to Specific Countries</label>
+                    <can_be_empty>1</can_be_empty>
+                    <source_model>Magento\Directory\Model\Config\Source\Country</source_model>
+                    <depends><field id="carriers/tradeaze/sallowspecific">1</field></depends>
+                </field>
+                <field id="specificerrmsg" type="textarea" sortOrder="60"
+                       showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+                    <label>Displayed Error Message</label>
+                </field>
+            </group>
+        </section>
+        <tab id="tradeaze" translate="label" sortOrder="999" class="tradeaze-tab">
+            <label>Tradeaze</label>
+        </tab>
+        <section id="tradeaze_api" sortOrder="10" showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+            <label>API Integration</label>
+            <tab>tradeaze</tab>
+            <resource>Tradeaze_ApiIntegration::config_tradeaze_api_integration</resource>
+            <group id="general" sortOrder="10" showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+                <label>General</label>
+                <field id="enabled" type="select" sortOrder="10"
+                       showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+                    <label>Enabled</label>
+                    <comment>
+                        <![CDATA[Controls whether the Tradeaze integration is active globally.]]>
+                    </comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <backend_model>Tradeaze\ApiIntegration\Model\Config\Backend\ValidateGeoNames</backend_model>
+                </field>
+                <field id="api_token" type="obscure" sortOrder="20"
+                       showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+                    <label>API Token</label>
+                    <comment>
+                        <![CDATA[The API token used for authorization when making calls to the Tradeaze API.]]>
+                    </comment>
+                    <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
+                    <config_path>tradeaze_api/general/api_token</config_path>
+                </field>
+                <field id="api_mode" type="select" sortOrder="30"
+                       showInWebsite="1" showInStore="1" showInDefault="1" translate="label comment">
+                    <label>API Mode</label>
+                    <comment>
+                        <![CDATA[Select Live for production or Test for staging API.]]>
+                    </comment>
+                    <source_model>Tradeaze\ApiIntegration\Model\Config\Source\TradeazeApiMode</source_model>
+                </field>
+                    <!-- Not yet implemented by Tradeaze -->
+<!--                <field id="create_draft_orders" type="select" sortOrder="40"-->
+<!--                       showInWebsite="1" showInStore="1" showInDefault="1" translate="label">-->
+<!--                    <label>Create Draft Orders</label>-->
+<!--                    <comment>-->
+<!--                        <![CDATA[Controls whether Magento uses live stock locations to request-->
+<!--                        quotes/create deliveries or uses the draft endpoints.]]>-->
+<!--                    </comment>-->
+<!--                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>-->
+<!--                </field>-->
+                <field id="create_webhooks" type="button" sortOrder="50"
+                       showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+                    <label>Create Webhooks</label>
+                    <comment>
+                        <![CDATA[Sync all webhook configurations to the Tradeaze API.]]>
+                    </comment>
+                    <frontend_model>Tradeaze\ApiIntegration\Block\Adminhtml\System\Config\CreateWebhook</frontend_model>
+                </field>
+            </group>
+            <group id="product_attributes" sortOrder="20" showInWebsite="1" showInStore="1" showInDefault="1"
+                   translate="label comment">
+                <label>Product Dimensions &amp; Weight</label>
+                <comment>
+                    <![CDATA[If attributes are configured for length, width, and height, and a product has
+                    values for all of those attributes, those values will be sent to Tradeaze. If not, it will fall back
+                    to default values determined by a product's "Tradeaze Size Category" attribute. Always prefer using
+                    real, accurate attribute data if available. The same logic also applies to a product's weight. If a
+                    product has no attribute data, and no size/weight category set, then the product is ineligible for
+                    Tradeaze delivery.]]>
+                </comment>
+                <field id="tradeaze_length_attribute" type="select" sortOrder="10"
+                       showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+                    <label>Length Attribute</label>
+                    <comment>
+                        <![CDATA[Select a product attribute to use as the item's length for Tradeaze API calls.]]>
+                    </comment>
+                    <source_model>Tradeaze\ApiIntegration\Model\Config\Source\TradeazeLengthAttribute</source_model>
+                </field>
+                <field id="tradeaze_width_attribute" type="select" sortOrder="20"
+                       showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+                    <label>Width Attribute</label>
+                    <comment>
+                        <![CDATA[Select a product attribute to use as the item's width for Tradeaze API calls.]]>
+                    </comment>
+                    <source_model>Tradeaze\ApiIntegration\Model\Config\Source\TradeazeWidthAttribute</source_model>
+                </field>
+                <field id="tradeaze_height_attribute" type="select" sortOrder="30"
+                       showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+                    <label>Height Attribute</label>
+                    <comment>
+                        <![CDATA[Select a product attribute to use as the item's height for Tradeaze API calls.]]>
+                    </comment>
+                    <source_model>Tradeaze\ApiIntegration\Model\Config\Source\TradeazeHeightAttribute</source_model>
+                </field>
+                <field id="tradeaze_weight_attribute" type="select" sortOrder="40"
+                       showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+                    <label>Weight Attribute</label>
+                    <comment>
+                        <![CDATA[Select a product attribute to use as the item's weight for Tradeaze API calls.]]>
+                    </comment>
+                    <source_model>Tradeaze\ApiIntegration\Model\Config\Source\TradeazeWeightAttribute</source_model>
+                </field>
+                <field id="tradeaze_default_unit" type="select" sortOrder="50"
+                       showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+                    <label>Default Dimension Unit</label>
+                    <comment>
+                        <![CDATA[The unit of measurement for the dimension attributes above.]]>
+                    </comment>
+                    <source_model>Tradeaze\ApiIntegration\Model\Config\Source\TradeazeDefaultUnit</source_model>
+                </field>
+            </group>
+            <group id="delivery" sortOrder="30" showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+                <label>Delivery</label>
+                <field id="delivery_cutoff_time_buffer" type="text" sortOrder="10"
+                       showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+                    <label>Cutoff Time Buffer (Minutes)</label>
+                    <comment>
+                        <![CDATA[A delivery method must remain available for at least this many minutes
+                        to be offered to customers. Default: 15.]]>
+                    </comment>
+                </field>
+            </group>
+            <group id="messaging" sortOrder="40" showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+                <label>On-Site Messaging</label>
+                <field id="pdp_messaging_enabled" type="select" sortOrder="10"
+                       showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+                    <label>Product Page Messaging</label>
+                    <comment>
+                        <![CDATA[Display Tradeaze messaging on the product detail page.]]>
+                    </comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+                <field id="basket_messaging_enabled" type="select" sortOrder="20"
+                       showInWebsite="1" showInStore="1" showInDefault="1" translate="label">
+                    <label>Basket Page Messaging</label>
+                    <comment>
+                        <![CDATA[Display Tradeaze messaging on the basket/cart page.]]>
+                    </comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+            </group>
+        </section>
+    </system>
+</config>

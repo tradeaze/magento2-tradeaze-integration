@@ -1,0 +1,15 @@
+<?php
+/**
+ * @var $block \Tradeaze\ApiIntegration\Block\OnSiteMessaging
+ * @var $escaper \Magento\Framework\Escaper
+ */
+?>
+<?php if ($block->canShowOnsiteMessaging()): ?>
+    <div class="tradeaze-on-site-messaging">
+        <img
+                class="tradeaze-icon"
+                width="300"
+                src="<?= $escaper->escapeUrl($block->getAssetUrl('Tradeaze_ApiIntegration/images/tradeaze-osm.png'))?>"
+        >
+    </div>
+<?php endif; ?>

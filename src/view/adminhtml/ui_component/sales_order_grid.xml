@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<listing xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
+    <columns name="sales_order_columns">
+        <column name="tradeaze_order_status" component="Magento_Ui/js/grid/columns/select">
+            <settings>
+                <filter>select</filter>
+                <options class="Tradeaze\ApiIntegration\Ui\Component\Listing\Column\TradeazeStatus"/>
+                <dataType>select</dataType>
+                <label translate="true">Tradeaze Order Status</label>
+            </settings>
+        </column>
+        <column name="tradeaze_order_id">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">Tradeaze Order ID</label>
+                <visible>false</visible>
+            </settings>
+        </column>
+    </columns>
+</listing>

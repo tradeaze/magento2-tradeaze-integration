@@ -1,0 +1,28 @@
+<?xml version="1.0" ?>
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Webapi:etc/webapi.xsd">
+    <route url="/V1/tradeaze-api-integration/orderconfirmed" method="POST">
+        <service class="Tradeaze\ApiIntegration\Api\OrderConfirmedManagementInterface" method="postOrderConfirmed"/>
+        <resources>
+            <resource ref="Tradeaze_ApiIntegration::orderupdate"/>
+        </resources>
+    </route>
+    <route url="/V1/tradeaze-api-integration/ordercancelled" method="POST">
+        <service class="Tradeaze\ApiIntegration\Api\OrderCancelledManagementInterface" method="postOrderCancelled"/>
+        <resources>
+            <resource ref="Tradeaze_ApiIntegration::orderupdate"/>
+        </resources>
+    </route>
+    <route url="/V1/tradeaze-api-integration/orderupdated" method="POST">
+        <service class="Tradeaze\ApiIntegration\Api\OrderUpdatedManagementInterface" method="postOrderUpdated"/>
+        <resources>
+            <resource ref="Tradeaze_ApiIntegration::orderupdate"/>
+        </resources>
+    </route>
+    <route url="/V1/tradeaze-api-integration/dropoffcomplete" method="POST">
+        <service class="Tradeaze\ApiIntegration\Api\DropOffCompleteManagementInterface" method="postDropOffComplete"/>
+        <resources>
+            <resource ref="Tradeaze_ApiIntegration::orderupdate"/>
+        </resources>
+    </route>
+</routes>

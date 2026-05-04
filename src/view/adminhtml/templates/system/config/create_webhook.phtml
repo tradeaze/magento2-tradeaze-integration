@@ -1,0 +1,23 @@
+<?php
+
+use Tradeaze\ApiIntegration\Block\Adminhtml\System\Config\CreateWebhook;
+
+/**
+ * @var CreateWebhook $block
+ * @var $escaper \Magento\Framework\Escaper
+ */
+?>
+
+<div id="tradeaze-create-webhook-result" style="margin-bottom: 8px;"></div>
+
+<?= $block->getButtonHtml() ?>
+
+<script type="text/x-magento-init">
+    {
+        "*": {
+            "Tradeaze_ApiIntegration/js/create-webhook": {
+                "ajaxUrl": "<?= $escaper->escapeUrl($block->getAjaxUrl()) ?>"
+            }
+        }
+    }
+</script>

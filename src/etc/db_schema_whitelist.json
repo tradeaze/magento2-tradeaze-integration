@@ -1,0 +1,16 @@
+{
+    "sales_order": {
+        "column": {
+            "tradeaze_order_status": true,
+            "tradeaze_order_id": true,
+            "tradeaze_source_code": true
+        }
+    },
+    "sales_order_grid": {
+        "column": {
+            "tradeaze_order_status": true,
+            "tradeaze_order_id": true,
+            "tradeaze_source_code": true
+        }
+    }
+}

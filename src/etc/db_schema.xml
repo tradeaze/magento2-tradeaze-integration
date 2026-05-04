@@ -1,0 +1,30 @@
+<?xml version="1.0" ?>
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+    <table name="sales_order">
+<!--
+        /**
+         * Allowed values
+         * PENDING
+         * CONFIRMED
+         * DELIVERED
+         * REJECTED
+         * CANCELLED
+         */
+-->
+        <column name="tradeaze_order_status" nullable="true"
+                xsi:type="varchar" comment="Tradeaze Order Status" length="255"/>
+        <column name="tradeaze_order_id" nullable="true"
+                xsi:type="varchar" comment="Tradeaze Order ID" length="255"/>
+        <column name="tradeaze_source_code" nullable="true"
+                xsi:type="varchar" comment="Tradeaze Source Code" length="255"/>
+    </table>
+    <table name="sales_order_grid">
+        <column name="tradeaze_order_status" nullable="true"
+                xsi:type="varchar" comment="Tradeaze Order Status" length="255"/>
+        <column name="tradeaze_order_id" nullable="true"
+                xsi:type="varchar" comment="Tradeaze Order ID" length="255"/>
+        <column name="tradeaze_source_code" nullable="true"
+                xsi:type="varchar" comment="Tradeaze Source Code" length="255"/>
+    </table>
+</schema>

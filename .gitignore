@@ -1,0 +1,15 @@
+# Composer
+/vendor/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Tooling caches
+.php_cs.cache
+.phpcs-cache
+phpunit.result.cache
+.phpunit.cache

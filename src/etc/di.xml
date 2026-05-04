@@ -1,0 +1,35 @@
+<?xml version="1.0" ?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <preference
+            for="Tradeaze\ApiIntegration\Api\OrderConfirmedManagementInterface"
+            type="Tradeaze\ApiIntegration\Model\Webhooks\OrderConfirmedManagement"/>
+    <preference
+            for="Tradeaze\ApiIntegration\Api\OrderCancelledManagementInterface"
+            type="Tradeaze\ApiIntegration\Model\Webhooks\OrderCancelledManagement"/>
+    <preference
+            for="Tradeaze\ApiIntegration\Api\OrderUpdatedManagementInterface"
+                type="Tradeaze\ApiIntegration\Model\Webhooks\OrderUpdatedManagement"/>
+    <preference
+            for="Tradeaze\ApiIntegration\Api\DropOffCompleteManagementInterface"
+                type="Tradeaze\ApiIntegration\Model\Webhooks\DropOffCompleteManagement"/>
+    <preference
+            for="Tradeaze\ApiIntegration\Api\Data\DataInterface"
+            type="Tradeaze\ApiIntegration\Model\Api\Data"/>
+    <virtualType name="Magento\Sales\Model\ResourceModel\Order\Grid" type="Magento\Sales\Model\ResourceModel\Grid">
+        <arguments>
+            <argument name="columns" xsi:type="array">
+                <item name="tradeaze_order_status" xsi:type="string">sales_order.tradeaze_order_status</item>
+                <item name="tradeaze_order_id" xsi:type="string">sales_order.tradeaze_order_id</item>
+                <item name="tradeaze_source_code" xsi:type="string">sales_order.tradeaze_source_code</item>
+            </argument>
+        </arguments>
+    </virtualType>
+    <type name="Magento\Config\Model\Config\TypePool">
+        <arguments>
+            <argument name="sensitive" xsi:type="array">
+                <item name="tradeaze_api/general/api_token" xsi:type="string">1</item>
+            </argument>
+        </arguments>
+    </type>
+</config>

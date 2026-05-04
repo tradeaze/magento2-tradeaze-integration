@@ -1,0 +1,41 @@
+<?xml version="1.0" ?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Store:etc/config.xsd">
+    <default>
+        <carriers>
+            <tradeaze>
+                <model>Tradeaze\ApiIntegration\Model\Carrier\Tradeaze</model>
+                <active>0</active>
+                <title>Tradeaze</title>
+                <name>Tradeaze</name>
+                <price>0.00</price>
+                <specificerrmsg>
+                    <![CDATA[This shipping method is not available. To use this shipping method, please contact us.]]>
+                </specificerrmsg>
+                <sallowspecific>0</sallowspecific>
+            </tradeaze>
+        </carriers>
+        <tradeaze_api>
+            <general>
+                <enabled>0</enabled>
+                <api_mode>test</api_mode>
+                <api_token backend_model="Magento\Config\Model\Config\Backend\Encrypted"></api_token>
+                <create_draft_orders/>
+            </general>
+            <product_attributes>
+                <tradeaze_length_attribute/>
+                <tradeaze_width_attribute/>
+                <tradeaze_height_attribute/>
+                <tradeaze_weight_attribute/>
+                <tradeaze_default_unit>m</tradeaze_default_unit>
+            </product_attributes>
+            <delivery>
+                <delivery_cutoff_time_buffer>15</delivery_cutoff_time_buffer>
+            </delivery>
+            <messaging>
+                <pdp_messaging_enabled>0</pdp_messaging_enabled>
+                <basket_messaging_enabled>0</basket_messaging_enabled>
+            </messaging>
+        </tradeaze_api>
+    </default>
+</config>

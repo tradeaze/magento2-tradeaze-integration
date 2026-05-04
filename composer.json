@@ -1,0 +1,64 @@
+{
+    "name": "tradeaze/magento2-tradeaze-integration",
+    "description": "Magento extension to integrate Tradeaze delivery methods with the Magento ecommerce platform",
+    "type": "magento2-module",
+    "license": "OSL-3.0",
+    "keywords": [
+        "magento",
+        "magento2",
+        "magento-2",
+        "delivery",
+        "logistics",
+        "tradeaze",
+        "shipping"
+    ],
+    "authors": [
+        {
+            "name": "Tradeaze Ltd",
+            "homepage": "https://www.tradeaze.uk"
+        },
+        {
+            "name": "Foundation Commerce Ltd",
+            "email": "hello@foundationcommerce.co.uk",
+            "role": "Original development"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/tradeaze/magento2-tradeaze-integration/issues",
+        "source": "https://github.com/tradeaze/magento2-tradeaze-integration",
+        "docs": "https://docs.tradeaze.app/"
+    },
+    "require": {
+        "php": "~8.2.0||~8.3.0||~8.4.0",
+        "guzzlehttp/guzzle": "^7.0"
+    },
+    "require-dev": {
+        "dealerdirect/phpcodesniffer-composer-installer": "^0.7 || ^1.0",
+        "magento/magento-coding-standard": "^38.0"
+    },
+    "config": {
+        "platform": {
+            "php": "8.2.0"
+        },
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    },
+    "suggest": {
+        "magento/framework": "Required for running inside Magento 2.4.6–2.4.8",
+        "magento/inventory-api": "Required if using MSI stock/source functionality",
+        "magento/inventory-sales-api": "Required if using MSI saleable quantity checks"
+    },
+    "conflict": {
+        "magento/framework": "<103.0.0",
+        "magento/inventory-api": "<1.2.0"
+    },
+    "autoload": {
+        "files": [
+            "src/registration.php"
+        ],
+        "psr-4": {
+            "Tradeaze\\ApiIntegration\\": "src/"
+        }
+    }
+}

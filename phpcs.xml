@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<ruleset name="MagentoStandards">
+    <description>Apply Magento2 coding standard to this module.</description>
+
+    <!-- Scan everything except vendor -->
+    <file>.</file>
+    <exclude-pattern>vendor/*</exclude-pattern>
+
+    <!-- Use Magento2 standard -->
+    <rule ref="Magento2"/>
+</ruleset>
