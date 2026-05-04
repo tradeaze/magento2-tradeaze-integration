@@ -3,6 +3,7 @@
     "description": "Magento extension to integrate Tradeaze delivery methods with the Magento ecommerce platform",
     "type": "magento2-module",
     "license": "OSL-3.0",
+    "homepage": "https://github.com/tradeaze/magento2-tradeaze-integration",
     "keywords": [
         "magento",
         "magento2",
