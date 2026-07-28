@@ -45,7 +45,9 @@ jobs:
         run: composer update --no-interaction --no-progress --prefer-dist
 
       - name: Show resolved Magento framework version
-        run: composer show magento/framework | head -5
+        # The Mage-OS repo may satisfy magento/framework via the replacing
+        # mage-os/framework package, so match either name.
+        run: composer show | grep -E "^(mage-os|magento)/framework" || true
 
       - name: Run unit tests
         run: vendor/bin/phpunit -c src/Test/Unit/phpunit.xml
