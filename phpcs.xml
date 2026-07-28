@@ -2,9 +2,10 @@
 <ruleset name="MagentoStandards">
     <description>Apply Magento2 coding standard to this module.</description>
 
-    <!-- Scan everything except vendor -->
+    <!-- Scan everything except vendor and the local dev store -->
     <file>.</file>
     <exclude-pattern>vendor/*</exclude-pattern>
+    <exclude-pattern>dev/*</exclude-pattern>
 
     <!-- Use Magento2 standard -->
     <rule ref="Magento2"/>

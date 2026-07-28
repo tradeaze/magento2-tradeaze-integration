@@ -13,3 +13,8 @@
 .phpcs-cache
 phpunit.result.cache
 .phpunit.cache
+
+# Local dev store (see docs/development.md)
+/dev/magento/
+/dev/.env
+/composer.lock
