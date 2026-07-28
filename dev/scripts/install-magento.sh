@@ -119,8 +119,8 @@ if ! bin/magento deploy:mode:show | grep -q developer; then
     bin/magento deploy:mode:set developer
 fi
 # 2FA gets in the way of local admin logins.
-bin/magento module:disable --clear-static-content \
-    Magento_AdminAdobeImsTwoFactorAuth Magento_TwoFactorAuth || true
+bin/magento module:disable Magento_AdminAdobeImsTwoFactorAuth || true
+bin/magento module:disable Magento_TwoFactorAuth || true
 
 # --- 7. GB GeoNames data ----------------------------------------------------
 # The module's ValidateGeoNames backend model refuses to enable the
