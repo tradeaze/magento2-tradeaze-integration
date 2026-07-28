@@ -129,8 +129,13 @@ performs from *source* (git clone) still contain everything; dist installs
 What has actually been run and verified, and where (last updated 2026-07-28):
 
 - **Verified in GitHub Actions (real runs on this repo):** both CI jobs —
-  the PHPUnit suite and phpcs — including composer dependency resolution
-  of the Magento 2.4.8-line packages from the Mage-OS mirror.
+  the full PHPUnit suite (76 tests) and phpcs — including composer
+  dependency resolution of the Magento 2.4.8-line packages from the
+  Mage-OS mirror. With a warm composer cache the whole workflow completes
+  in well under a minute. Note: the Mage-OS repo satisfies `magento/*`
+  requirements via its replacing `mage-os/*` packages (identical
+  namespaces and code), which is why `composer show` lists
+  `mage-os/framework` rather than `magento/framework`.
 - **Scripted but not executed end-to-end:** the local store setup
   (`dev/setup.sh`, ddev and compose paths). The environment this setup was
   authored in has no running Docker daemon (no systemd/dockerd) and its
