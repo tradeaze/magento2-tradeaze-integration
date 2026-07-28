@@ -29,21 +29,49 @@
         "source": "https://github.com/tradeaze/magento2-tradeaze-integration",
         "docs": "https://docs.tradeaze.app/"
     },
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://repo.mage-os.org/"
+        }
+    ],
     "require": {
         "php": "~8.2.0||~8.3.0||~8.4.0",
         "guzzlehttp/guzzle": "^7.0"
     },
     "require-dev": {
         "dealerdirect/phpcodesniffer-composer-installer": "^0.7 || ^1.0",
-        "magento/magento-coding-standard": "^38.0"
+        "magento/framework": "^103.0",
+        "magento/magento-coding-standard": "^38.0",
+        "magento/module-backend": "*",
+        "magento/module-catalog": "*",
+        "magento/module-checkout": "*",
+        "magento/module-config": "*",
+        "magento/module-directory": "*",
+        "magento/module-eav": "*",
+        "magento/module-inventory": "*",
+        "magento/module-inventory-api": "*",
+        "magento/module-inventory-distance-based-source-selection": "*",
+        "magento/module-inventory-sales-api": "*",
+        "magento/module-inventory-source-selection-api": "*",
+        "magento/module-quote": "*",
+        "magento/module-sales": "*",
+        "magento/module-shipping": "*",
+        "magento/module-store": "*",
+        "phpunit/phpunit": "^9.6"
     },
     "config": {
         "platform": {
-            "php": "8.2.0"
+            "php": "8.3.0"
         },
         "allow-plugins": {
-            "dealerdirect/phpcodesniffer-composer-installer": true
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "magento/*": true
         }
+    },
+    "scripts": {
+        "test:unit": "phpunit -c src/Test/Unit/phpunit.xml",
+        "test:phpcs": "phpcs -p"
     },
     "suggest": {
         "magento/framework": "Required for running inside Magento 2.4.6–2.4.8",
