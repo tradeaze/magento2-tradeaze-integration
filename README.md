@@ -288,6 +288,21 @@ The Tradeaze Order Status column is added to the sales order grid with a dropdow
 
 ---
 
+## Development
+
+A one-command local dev store (Magento 2.4.8 + Luma sample data via the
+Mage-OS mirror, this module symlinked in) and instructions for running the
+unit tests and coding-standard checks live in
+[docs/development.md](docs/development.md):
+
+```bash
+./dev/setup.sh
+```
+
+CI runs PHPUnit and phpcs (Magento2 standard) on every push and pull request.
+
+---
+
 ## License
 
 This module is open-source and released under the [OSL-3.0 LICENSE](LICENSE.txt).

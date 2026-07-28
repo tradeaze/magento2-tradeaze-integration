@@ -1,0 +1,23 @@
+# DDEV configuration for the Tradeaze Magento 2 development store.
+#
+# The Magento 2.4.8 store itself is installed (git-ignored) into
+# dev/magento/ by dev/setup.sh, with this module symlinked in via a
+# Composer path repository. See docs/development.md.
+name: tradeaze-magento2
+type: magento2
+docroot: dev/magento/pub
+upload_dirs:
+  - media
+php_version: "8.3"
+webserver_type: nginx-fpm
+xdebug_enabled: false
+database:
+  type: mariadb
+  version: "10.6"
+composer_root: dev/magento
+# The install script (dev/scripts/install-magento.sh) fully owns
+# app/etc/env.php via bin/magento setup:install, so DDEV must not
+# manage Magento settings files.
+disable_settings_management: true
+web_environment:
+  - COMPOSER_MEMORY_LIMIT=-1
