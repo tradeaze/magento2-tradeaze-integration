@@ -126,6 +126,10 @@ bin/magento module:disable Magento_TwoFactorAuth || true
 # script against locally and in the smoke test. Dev store only — never
 # do this in production.
 bin/magento config:set admin/security/use_form_key 0
+# The module is symlinked in via the composer path repository, so its
+# templates resolve outside the Magento root; without this the template
+# path validator 500s on any page rendering them. Dev store only.
+bin/magento config:set dev/template/allow_symlink 1
 
 # --- 7. GB GeoNames data ----------------------------------------------------
 # The module's ValidateGeoNames backend model refuses to enable the
