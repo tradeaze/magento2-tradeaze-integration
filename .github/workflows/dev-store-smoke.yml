@@ -9,6 +9,11 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 5 * * 1'
+  push:
+    paths:
+      - 'dev/**'
+      - '.ddev/**'
+      - '.github/workflows/dev-store-smoke.yml'
   pull_request:
     paths:
       - 'dev/**'
