@@ -14,7 +14,10 @@ Open Source packages.)
 
 Prerequisites: [ddev](https://ddev.readthedocs.io/en/stable/users/install/)
 (preferred) **or** Docker with the compose plugin. Give Docker at least
-~6 GB RAM — OpenSearch plus Magento need it.
+~6 GB RAM and ~10 GB disk — OpenSearch plus Magento need it. On Linux
+hosts, OpenSearch also needs `sudo sysctl -w vm.max_map_count=262144`
+before the first run (Docker Desktop on macOS/Windows already sets this
+inside its VM).
 
 ```bash
 git clone git@github.com:tradeaze/magento2-tradeaze-integration.git
@@ -93,6 +96,14 @@ To rebuild the store from scratch: `ddev delete -Oy` (or
 `docker compose -f dev/docker-compose.yml down -v`), then
 `rm -rf dev/magento` and re-run `./dev/setup.sh`.
 
+To check a running store is healthy (storefront + admin + Tradeaze
+config section — the same checks CI runs):
+
+```bash
+./dev/scripts/smoke-test.sh http://localhost:8080                  # compose
+./dev/scripts/smoke-test.sh https://tradeaze-magento2.ddev.site    # ddev
+```
+
 ## Unit tests and coding standards
 
 The repo's own `composer.json` pulls the Magento framework packages needed
@@ -164,9 +175,6 @@ What has actually been run and verified, and where (last updated 2026-08-08):
   `dev/scripts/install-magento.sh` is idempotent — fix and re-run
   `./dev/setup.sh`.
 
-Known environment requirements for the store: Docker with ~6 GB RAM
-(OpenSearch alone wants its 512 MB heap plus overhead; Magento + sample
-data install peaks ~2 GB PHP memory), ~10 GB disk for images, packages,
-and the database. On Linux hosts OpenSearch may also need
-`sudo sysctl -w vm.max_map_count=262144` (Docker Desktop on macOS/Windows
-sets this inside its VM already).
+Known environment requirements for the store are listed under
+"Local dev store" above (RAM, disk, and the Linux `vm.max_map_count`
+setting for OpenSearch).
