@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" \
         bcmath \
+        ftp \
         gd \
         intl \
         opcache \
@@ -51,4 +52,6 @@ RUN sed -ri 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
 # Match the host UID (passed by dev/setup.sh) so the bind-mounted repo
 # stays writable by both the container (www-data) and the host user.
 ARG HOST_UID=1000
-RUN usermod -o -u "$HOST_UID" www-data
+RUN usermod -o -u "$HOST_UID" www-data \
+    && mkdir -p /tmp/composer \
+    && chown www-data:www-data /tmp/composer
