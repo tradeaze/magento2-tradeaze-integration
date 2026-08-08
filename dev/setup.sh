@@ -26,6 +26,12 @@ if [ ! -f dev/.env ]; then
     echo ">> ./dev/setup.sh (or dev/scripts/configure-tradeaze.sh) to apply it."
 fi
 
+# Pre-create directories that must exist before the containers start:
+# the web docroot, and the app/code mount target for this module. If
+# Docker creates the mount path itself it does so as root, leaving app/
+# unwritable for the in-container web user.
+mkdir -p dev/magento/pub dev/magento/app/code/Tradeaze/ApiIntegration
+
 have() { command -v "$1" >/dev/null 2>&1; }
 
 use_ddev() {
@@ -54,9 +60,6 @@ use_compose() {
     # bind-mounted repo stays writable on both sides.
     HOST_UID="$(id -u)"
     export HOST_UID
-
-    # Apache's DocumentRoot must exist before the web container starts.
-    mkdir -p dev/magento/pub
 
     docker compose -f dev/docker-compose.yml up -d --build --wait
 
