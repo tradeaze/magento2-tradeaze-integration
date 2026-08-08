@@ -129,23 +129,21 @@ performs from *source* (git clone) still contain everything; dist installs
 
 ## Verification status
 
-What has actually been run and verified, and where (last updated 2026-07-28):
+What has actually been run and verified, and where (last updated 2026-08-08):
 
 - **Verified in GitHub Actions (real runs on this repo):** both CI jobs —
   the full PHPUnit suite (76 tests) and phpcs — including composer
-  dependency resolution of the Magento 2.4.8-line packages from the
-  Mage-OS mirror. With a warm composer cache the whole workflow completes
-  in well under a minute. Note: the Mage-OS repo satisfies `magento/*`
-  requirements via its replacing `mage-os/*` packages (identical
-  namespaces and code), which is why `composer show` lists
-  `mage-os/framework` rather than `magento/framework`.
-- **Verified by the "Dev store smoke test" workflow:** the docker-compose
-  path of the store setup. `.github/workflows/dev-store-smoke.yml` runs
+  dependency resolution of the verbatim `magento/*` 2.4.8-line packages
+  from `mirror.mage-os.org`. With a warm composer cache the whole
+  workflow completes in well under a minute.
+- **Verified by the "Dev store smoke test" workflow (green run on a
+  clean runner, ~9 minutes):** the docker-compose path of the store
+  setup. `.github/workflows/dev-store-smoke.yml` runs
   `./dev/setup.sh --compose` from a clean checkout on a GitHub runner,
   asserts the storefront and a Luma category product grid render, checks
   the module is enabled, and re-runs the setup to prove idempotence. It
-  runs on demand (`workflow_dispatch`), weekly, and on PRs that touch
-  `dev/**` or `.ddev/**`.
+  runs on demand (`workflow_dispatch`), weekly, and on pushes/PRs that
+  touch `dev/**` or `.ddev/**`.
 - **Scripted but not covered by automation:** the ddev wrapper
   (`.ddev/` config plus the ddev branch of `dev/setup.sh`). It drives the
   exact same in-container install script the smoke-tested compose path
