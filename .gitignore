@@ -18,8 +18,3 @@ phpunit.result.cache
 /dev/magento/
 /dev/.env
 /composer.lock
-
-# Playwright e2e (dev tooling)
-/dev/e2e/node_modules/
-/dev/e2e/test-results/
-/dev/e2e/playwright-report/
