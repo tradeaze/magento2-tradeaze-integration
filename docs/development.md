@@ -5,7 +5,10 @@ module against a real Magento 2.4.8 Open Source store, plus CI that runs the
 unit tests and coding-standard checks on every push and pull request.
 
 Everything installs from the [Mage-OS composer mirror](https://mage-os.org/distribution/#mirror)
-(`https://repo.mage-os.org`), so **no `repo.magento.com` auth keys are needed**.
+(`https://mirror.mage-os.org`), so **no `repo.magento.com` auth keys are needed**.
+(Note: `repo.mage-os.org` is the separate Mage-OS *distribution* repo — the
+mirror at `mirror.mage-os.org` is the one that serves verbatim `magento/*`
+Open Source packages.)
 
 ## Local dev store — one command
 

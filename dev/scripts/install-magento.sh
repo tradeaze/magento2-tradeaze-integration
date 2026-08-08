@@ -9,7 +9,10 @@ set -euo pipefail
 REPO_ROOT="${REPO_ROOT:-/var/www/html}"
 MAGENTO_DIR="$REPO_ROOT/dev/magento"
 MAGENTO_VERSION="${MAGENTO_VERSION:-2.4.8}"
-MAGE_OS_REPO="${MAGE_OS_REPO:-https://repo.mage-os.org}"
+# mirror.mage-os.org serves verbatim magento/* Open Source packages
+# without auth keys (repo.mage-os.org is the separate Mage-OS
+# distribution and does not provide magento/project-community-edition).
+MAGE_OS_REPO="${MAGE_OS_REPO:-https://mirror.mage-os.org}"
 
 # Load git-ignored local settings (Tradeaze API token etc.).
 if [ -f "$REPO_ROOT/dev/.env" ]; then
@@ -56,7 +59,7 @@ php -r '
     $file = "composer.json";
     $json = json_decode(file_get_contents($file), true);
     $json["repositories"] = [
-        "mage-os" => ["type" => "composer", "url" => getenv("MAGE_OS_REPO") ?: "https://repo.mage-os.org"],
+        "mage-os-mirror" => ["type" => "composer", "url" => getenv("MAGE_OS_REPO") ?: "https://mirror.mage-os.org"],
         "tradeaze" => ["type" => "path", "url" => "../../", "options" => ["symlink" => true]],
     ];
     $json["minimum-stability"] = "dev";
