@@ -45,6 +45,16 @@ use_ddev() {
 
 use_compose() {
     echo ">> Using docker compose fallback."
+    if ! docker info >/dev/null 2>&1; then
+        echo "ERROR: Docker daemon not reachable. Start Docker and re-run." >&2
+        exit 1
+    fi
+
+    # Build the web image with www-data matching the host UID so the
+    # bind-mounted repo stays writable on both sides.
+    HOST_UID="$(id -u)"
+    export HOST_UID
+
     # Apache's DocumentRoot must exist before the web container starts.
     mkdir -p dev/magento/pub
 

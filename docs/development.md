@@ -136,18 +136,24 @@ What has actually been run and verified, and where (last updated 2026-07-28):
   requirements via its replacing `mage-os/*` packages (identical
   namespaces and code), which is why `composer show` lists
   `mage-os/framework` rather than `magento/framework`.
-- **Scripted but not executed end-to-end:** the local store setup
-  (`dev/setup.sh`, ddev and compose paths). The environment this setup was
-  authored in has no running Docker daemon (no systemd/dockerd) and its
-  egress proxy blocks `repo.mage-os.org` and composer dist downloads, so a
-  store could not be booted there. The scripts were validated statically
-  (`bash -n`, shellcheck-style review, `php -l`, YAML parsing) and follow
-  the documented ddev Magento 2 + Mage-OS mirror install flow. If the first
-  run on a normal dev machine trips on anything, every step in
+- **Verified by the "Dev store smoke test" workflow:** the docker-compose
+  path of the store setup. `.github/workflows/dev-store-smoke.yml` runs
+  `./dev/setup.sh --compose` from a clean checkout on a GitHub runner,
+  asserts the storefront and a Luma category product grid render, checks
+  the module is enabled, and re-runs the setup to prove idempotence. It
+  runs on demand (`workflow_dispatch`), weekly, and on PRs that touch
+  `dev/**` or `.ddev/**`.
+- **Scripted but not covered by automation:** the ddev wrapper
+  (`.ddev/` config plus the ddev branch of `dev/setup.sh`). It drives the
+  exact same in-container install script the smoke-tested compose path
+  uses; only the ddev-specific glue (config.yaml, the OpenSearch service
+  file) is untested in CI. If a first run trips on anything, every step in
   `dev/scripts/install-magento.sh` is idempotent — fix and re-run
   `./dev/setup.sh`.
 
 Known environment requirements for the store: Docker with ~6 GB RAM
 (OpenSearch alone wants its 512 MB heap plus overhead; Magento + sample
 data install peaks ~2 GB PHP memory), ~10 GB disk for images, packages,
-and the database.
+and the database. On Linux hosts OpenSearch may also need
+`sudo sysctl -w vm.max_map_count=262144` (Docker Desktop on macOS/Windows
+sets this inside its VM already).

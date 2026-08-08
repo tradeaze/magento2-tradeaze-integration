@@ -48,6 +48,7 @@ RUN sed -ri 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
         > /etc/apache2/conf-available/magento.conf \
     && a2enconf magento
 
-# Match the typical host UID so the bind-mounted repo stays writable by
-# both the container (www-data) and the host user.
-RUN usermod -u 1000 www-data 2>/dev/null || true
+# Match the host UID (passed by dev/setup.sh) so the bind-mounted repo
+# stays writable by both the container (www-data) and the host user.
+ARG HOST_UID=1000
+RUN usermod -o -u "$HOST_UID" www-data

@@ -1,5 +1,7 @@
 # Tradeaze_ApiIntegration for Magento 2
 
+[![CI](https://github.com/tradeaze/magento2-tradeaze-integration/actions/workflows/ci.yml/badge.svg)](https://github.com/tradeaze/magento2-tradeaze-integration/actions/workflows/ci.yml)
+
 **Package:** `tradeaze/magento2-tradeaze-integration`
 **Type:** Magento 2 Extension
 **License:** OSL-3.0
