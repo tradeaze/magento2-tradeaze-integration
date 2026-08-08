@@ -140,10 +140,18 @@ What has actually been run and verified, and where (last updated 2026-08-08):
   clean runner, ~9 minutes):** the docker-compose path of the store
   setup. `.github/workflows/dev-store-smoke.yml` runs
   `./dev/setup.sh --compose` from a clean checkout on a GitHub runner,
-  asserts the storefront and a Luma category product grid render, checks
-  the module is enabled, and re-runs the setup to prove idempotence. It
-  runs on demand (`workflow_dispatch`), weekly, and on pushes/PRs that
-  touch `dev/**` or `.ddev/**`.
+  then runs `dev/scripts/smoke-test.sh`, which covers **both sides of
+  the store**: the customer storefront (homepage + a Luma category
+  product grid) and the admin backend (logs in as the admin user —
+  proving 2FA is disabled — and renders the Tradeaze configuration
+  section, which instantiates the module's source models and webhook
+  button block). It then checks the module is enabled and re-runs the
+  setup to prove idempotence. The workflow runs on demand
+  (`workflow_dispatch`), weekly, and on pushes/PRs that touch `dev/**`
+  or `.ddev/**`. The same script works against a local store:
+  `./dev/scripts/smoke-test.sh https://tradeaze-magento2.ddev.site`.
+  (To make the admin scriptable, the dev store disables per-session
+  admin URL secret keys — a dev-store-only convenience.)
 - **Scripted but not covered by automation:** the ddev wrapper
   (`.ddev/` config plus the ddev branch of `dev/setup.sh`). It drives the
   exact same in-container install script the smoke-tested compose path

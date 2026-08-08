@@ -292,6 +292,10 @@ The Tradeaze Order Status column is added to the sales order grid with a dropdow
 
 ## Development
 
+The plugin itself is just `src/` + `composer.json` — everything under
+`dev/`, `.ddev/`, `.github/`, and `docs/` is development tooling that is
+excluded from Composer dist archives, so merchants never receive it.
+
 A one-command local dev store (Magento 2.4.8 + Luma sample data via the
 Mage-OS mirror, this module symlinked in) and instructions for running the
 unit tests and coding-standard checks live in

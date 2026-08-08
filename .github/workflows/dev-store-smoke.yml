@@ -39,15 +39,8 @@ jobs:
       - name: Run one-command setup
         run: ./dev/setup.sh --compose
 
-      - name: Smoke test storefront
-        run: |
-          # First render in developer mode is slow; be patient.
-          curl -fsS --retry 5 --retry-delay 10 --retry-all-errors \
-            --max-time 300 -o /dev/null http://localhost:8080/
-          # Luma sample data category page must render a product grid.
-          curl -fsS --max-time 300 http://localhost:8080/women.html \
-            | grep -q 'products-grid'
-          echo "Storefront and category product grid OK."
+      - name: Smoke test storefront + admin (incl. Tradeaze config section)
+        run: ./dev/scripts/smoke-test.sh http://localhost:8080
 
       - name: Verify module enabled
         run: |

@@ -62,8 +62,6 @@ php -r '
         "mage-os-mirror" => ["type" => "composer", "url" => getenv("MAGE_OS_REPO") ?: "https://mirror.mage-os.org"],
         "tradeaze" => ["type" => "path", "url" => "../../", "options" => ["symlink" => true]],
     ];
-    $json["minimum-stability"] = "dev";
-    $json["prefer-stable"] = true;
     file_put_contents($file, json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
 '
 
@@ -124,6 +122,10 @@ fi
 # 2FA gets in the way of local admin logins.
 bin/magento module:disable Magento_AdminAdobeImsTwoFactorAuth || true
 bin/magento module:disable Magento_TwoFactorAuth || true
+# Stable admin URLs (no per-session secret key) so the admin is easy to
+# script against locally and in the smoke test. Dev store only — never
+# do this in production.
+bin/magento config:set admin/security/use_form_key 0
 
 # --- 7. GB GeoNames data ----------------------------------------------------
 # The module's ValidateGeoNames backend model refuses to enable the
