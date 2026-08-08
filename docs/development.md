@@ -89,6 +89,29 @@ To rebuild the store from scratch: `ddev delete -Oy` (or
 `docker compose -f dev/docker-compose.yml down -v`), then
 `rm -rf dev/magento` and re-run `./dev/setup.sh`.
 
+## Browser e2e tests (Playwright)
+
+`dev/e2e/` holds Playwright tests that drive the dev store in a real
+browser — the parts plain HTTP checks can't reach:
+
+- **Storefront:** browse a Luma category, add a simple product to the
+  cart, and complete the checkout address form with a GB address until
+  shipping methods load (the checkout is a Knockout.js app, so this
+  genuinely exercises the JS pipeline the Tradeaze carrier plugs into).
+  Set `EXPECT_TRADEAZE=1` to additionally assert the Tradeaze option
+  appears — requires a staging API token in `dev/.env`.
+- **Admin:** log in, open the Tradeaze configuration section, and save
+  it (exercising the encrypted token field and `ValidateGeoNames`).
+
+They run in the smoke-test workflow against the CI store, and locally
+against either environment:
+
+```bash
+cd dev/e2e
+npm ci && npx playwright install chromium
+BASE_URL=https://tradeaze-magento2.ddev.site npx playwright test
+```
+
 ## Unit tests and coding standards
 
 The repo's own `composer.json` pulls the Magento framework packages needed

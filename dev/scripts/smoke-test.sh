@@ -25,7 +25,10 @@ curl -ksS --retry 5 --retry-delay 10 --retry-all-errors --max-time 300 \
     -o /dev/null -f "$BASE_URL/"
 
 echo ">> [2/4] Luma sample-data category page shows a product grid ..."
-"${CURL[@]}" -f "$BASE_URL/women.html" | grep -q 'products-grid'
+# Buffer the page: piping straight into grep -q makes curl fail with
+# EPIPE (exit 23) under pipefail once grep exits at the first match.
+category_page="$("${CURL[@]}" -f "$BASE_URL/women.html")"
+printf '%s' "$category_page" | grep -q 'products-grid'
 
 echo ">> [3/4] Admin login works (2FA disabled) ..."
 login_page="$("${CURL[@]}" -f -L "$BASE_URL/admin/")"

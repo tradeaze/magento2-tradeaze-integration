@@ -15,6 +15,7 @@ store to develop and test against:
 | `scripts/install-magento.sh` | In-container install: Magento + sample data + this module |
 | `scripts/configure-tradeaze.sh` | Re-apply plugin config from `dev/.env` |
 | `scripts/smoke-test.sh` | Storefront + admin HTTP checks (used by CI, runnable locally) |
+| `e2e/` | Playwright browser tests: guest checkout + admin config (used by CI, runnable locally) |
 | `Dockerfile`, `docker-compose.yml` | The docker compose fallback stack |
 | `.env.example` | Template for git-ignored `dev/.env` (staging API token etc.) |
 | `magento/` | The installed dev store — git-ignored, never committed |
