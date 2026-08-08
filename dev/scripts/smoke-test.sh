@@ -19,42 +19,51 @@ COOKIES="$(mktemp)"
 trap 'rm -f "$COOKIES"' EXIT
 CURL=(curl -ksS --max-time 300 -b "$COOKIES" -c "$COOKIES")
 
+# Assert $1 contains substring $2. Pure bash — piping page bodies into
+# grep -q dies with SIGPIPE under pipefail when grep exits early.
+require_contains() {
+    local haystack="$1" needle="$2" label="$3"
+    if [[ "$haystack" != *"$needle"* ]]; then
+        echo "ERROR: $label: expected to find '$needle' in the response." >&2
+        exit 1
+    fi
+}
+
 echo ">> [1/4] Storefront homepage renders ..."
 # First render in developer mode is slow; retry while PHP warms up.
 curl -ksS --retry 5 --retry-delay 10 --retry-all-errors --max-time 300 \
     -o /dev/null -f "$BASE_URL/"
 
 echo ">> [2/4] Luma sample-data category page shows a product grid ..."
-# Buffer the page: piping straight into grep -q makes curl fail with
-# EPIPE (exit 23) under pipefail once grep exits at the first match.
 category_page="$("${CURL[@]}" -f "$BASE_URL/women.html")"
-printf '%s' "$category_page" | grep -q 'products-grid'
+require_contains "$category_page" 'products-grid' 'category page'
 
 echo ">> [3/4] Admin login works (2FA disabled) ..."
 login_page="$("${CURL[@]}" -f -L "$BASE_URL/admin/")"
-form_key="$(printf '%s' "$login_page" | grep -oE "FORM_KEY = '[^']+'" | head -1 | cut -d"'" -f2 || true)"
-if [ -z "$form_key" ]; then
-    form_key="$(printf '%s' "$login_page" \
-        | grep -oE 'name="form_key"[^>]*value="[^"]+"' | head -1 \
-        | grep -oE 'value="[^"]+"' | cut -d'"' -f2)"
+form_key=""
+re_js="FORM_KEY = '([^']+)'"
+re_input='name="form_key"[^>]*value="([^"]+)"'
+if [[ "$login_page" =~ $re_js ]]; then
+    form_key="${BASH_REMATCH[1]}"
+elif [[ "$login_page" =~ $re_input ]]; then
+    form_key="${BASH_REMATCH[1]}"
+else
+    echo "ERROR: could not extract form_key from the admin login page." >&2
+    exit 1
 fi
 dashboard="$("${CURL[@]}" -f -L \
     --data-urlencode "login[username]=$ADMIN_USER" \
     --data-urlencode "login[password]=$ADMIN_PASSWORD" \
     --data-urlencode "form_key=$form_key" \
     "$BASE_URL/admin/admin/index/index/")"
-if ! printf '%s' "$dashboard" | grep -qi 'dashboard'; then
-    echo "ERROR: admin login failed (no dashboard after sign-in)." >&2
-    printf '%s' "$dashboard" | grep -oiE 'message-error[^<]*<[^>]*>[^<]*' >&2 || true
-    exit 1
-fi
+require_contains "$dashboard" 'Dashboard' 'admin login'
 
 echo ">> [4/4] Tradeaze admin configuration section renders ..."
 # Renders the module's system.xml section: source models, the encrypted
 # token field, and the Create Webhooks button block all instantiate here.
 config_page="$("${CURL[@]}" -f -L \
     "$BASE_URL/admin/admin/system_config/edit/section/tradeaze_api/")"
-printf '%s' "$config_page" | grep -q 'API Token'
-printf '%s' "$config_page" | grep -qi 'Create Webhooks'
+require_contains "$config_page" 'API Token' 'Tradeaze config section'
+require_contains "$config_page" 'Create Webhooks' 'Tradeaze config section'
 
 echo ">> Smoke test passed: storefront and admin (incl. Tradeaze config) OK."
