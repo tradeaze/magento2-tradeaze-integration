@@ -141,8 +141,8 @@ What has actually been run and verified, and where (last updated 2026-08-08):
   from `mirror.mage-os.org`. With a warm composer cache the whole
   workflow completes in well under a minute.
 - **Verified by the "Dev store smoke test" workflow (green run on a
-  clean runner, ~9 minutes):** the docker-compose path of the store
-  setup. `.github/workflows/dev-store-smoke.yml` runs
+  clean runner, ~6.5 minutes):** the docker-compose path of the store
+  setup, using the app/code bind-mount module layout. `.github/workflows/dev-store-smoke.yml` runs
   `./dev/setup.sh --compose` from a clean checkout on a GitHub runner,
   then runs `dev/scripts/smoke-test.sh`, which covers **both sides of
   the store**: the customer storefront (homepage + a Luma category
