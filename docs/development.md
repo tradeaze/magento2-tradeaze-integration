@@ -28,9 +28,13 @@ That is the whole setup. The script auto-detects ddev (falling back to
 1. Starts the stack: PHP 8.3 + nginx/Apache, MariaDB 10.6, OpenSearch 2.19.
 2. Installs **Magento 2.4.8 Open Source** into `dev/magento/` (git-ignored)
    from the Mage-OS mirror.
-3. Adds this repo as a **composer path repository** and requires
-   `tradeaze/magento2-tradeaze-integration:@dev` — the module is *symlinked*
-   into the store, so your edits in `src/` are live immediately.
+3. Bind-mounts this repo's `src/` into the store at
+   `app/code/Tradeaze/ApiIntegration` — Magento's standard module-dev
+   layout — so your edits in `src/` are live immediately. (A composer
+   path-repo *symlink* is not used deliberately: Magento 2.4.8's template
+   path validator rejects template files whose real path resolves outside
+   the Magento root, so symlinked modules 500 on any page that renders
+   their templates.)
 4. Deploys the **Luma sample data** (category pages with product grids).
 5. Runs `bin/magento inventory-geonames:import GB` — required: the module's
    `ValidateGeoNames` backend model refuses to enable the integration until
@@ -71,8 +75,8 @@ The token is stored through Magento's encrypted config backend, and the
 
 ## Day-to-day workflow
 
-The module is symlinked, so PHP changes in `src/` apply immediately (the
-store runs in developer mode). Useful commands:
+The module is bind-mounted into `app/code`, so PHP changes in `src/`
+apply immediately (the store runs in developer mode). Useful commands:
 
 | Task | ddev | compose fallback |
 |---|---|---|

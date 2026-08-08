@@ -297,7 +297,7 @@ The plugin itself is just `src/` + `composer.json` — everything under
 excluded from Composer dist archives, so merchants never receive it.
 
 A one-command local dev store (Magento 2.4.8 + Luma sample data via the
-Mage-OS mirror, this module symlinked in) and instructions for running the
+Mage-OS mirror, this module mounted into app/code) and instructions for running the
 unit tests and coding-standard checks live in
 [docs/development.md](docs/development.md):
 

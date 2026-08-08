@@ -53,14 +53,13 @@ fi
 
 cd "$MAGENTO_DIR"
 
-# --- 2. Point composer at the Mage-OS mirror + this repo (symlinked) --------
-echo ">> Configuring composer repositories (Mage-OS mirror + path repo) ..."
+# --- 2. Point composer at the Mage-OS mirror --------------------------------
+echo ">> Configuring composer repositories (Mage-OS mirror) ..."
 php -r '
     $file = "composer.json";
     $json = json_decode(file_get_contents($file), true);
     $json["repositories"] = [
         "mage-os-mirror" => ["type" => "composer", "url" => getenv("MAGE_OS_REPO") ?: "https://mirror.mage-os.org"],
-        "tradeaze" => ["type" => "path", "url" => "../../", "options" => ["symlink" => true]],
     ];
     file_put_contents($file, json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
 '
@@ -70,10 +69,14 @@ if [ ! -f vendor/autoload.php ]; then
     composer install --no-interaction --no-progress
 fi
 
-# --- 3. Install this module from the repo root via the path repository ------
-if ! grep -q '"tradeaze/magento2-tradeaze-integration"' composer.json; then
-    echo ">> Requiring tradeaze/magento2-tradeaze-integration (symlinked) ..."
-    composer require --no-interaction "tradeaze/magento2-tradeaze-integration:@dev"
+# --- 3. The Tradeaze module ---------------------------------------------------
+# The repo's src/ is bind-mounted at app/code/Tradeaze/ApiIntegration
+# (see dev/docker-compose.yml and .ddev/docker-compose.tradeaze-module.yaml),
+# so Magento picks the module up natively and code edits are live.
+if [ ! -f app/code/Tradeaze/ApiIntegration/registration.php ]; then
+    echo "ERROR: app/code/Tradeaze/ApiIntegration is not mounted." >&2
+    echo "       Check the web container's volumes and restart the stack." >&2
+    exit 1
 fi
 
 # --- 4. Install Magento -----------------------------------------------------
@@ -126,10 +129,6 @@ bin/magento module:disable Magento_TwoFactorAuth || true
 # script against locally and in the smoke test. Dev store only — never
 # do this in production.
 bin/magento config:set admin/security/use_form_key 0
-# The module is symlinked in via the composer path repository, so its
-# templates resolve outside the Magento root; without this the template
-# path validator 500s on any page rendering them. Dev store only.
-bin/magento config:set dev/template/allow_symlink 1
 
 # --- 7. GB GeoNames data ----------------------------------------------------
 # The module's ValidateGeoNames backend model refuses to enable the

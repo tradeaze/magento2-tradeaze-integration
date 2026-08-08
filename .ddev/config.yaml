@@ -1,8 +1,9 @@
 # DDEV configuration for the Tradeaze Magento 2 development store.
 #
 # The Magento 2.4.8 store itself is installed (git-ignored) into
-# dev/magento/ by dev/setup.sh, with this module symlinked in via a
-# Composer path repository. See docs/development.md.
+# dev/magento/ by dev/setup.sh, with this module bind-mounted into
+# app/code (see docker-compose.tradeaze-module.yaml and
+# docs/development.md).
 name: tradeaze-magento2
 type: magento2
 docroot: dev/magento/pub

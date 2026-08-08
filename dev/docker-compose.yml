@@ -13,6 +13,12 @@ services:
       - "8080:80"
     volumes:
       - ..:/var/www/html:cached
+      # The module is developed against the store via a bind mount into
+      # app/code (Magento's standard module-dev layout). A composer
+      # path-repo symlink cannot work here: Magento 2.4.8's template
+      # path validator rejects template files whose real path resolves
+      # outside the Magento root.
+      - ../src:/var/www/html/dev/magento/app/code/Tradeaze/ApiIntegration:cached
       - composer-cache:/tmp/composer
     environment:
       REPO_ROOT: /var/www/html

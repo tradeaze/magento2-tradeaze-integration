@@ -1,0 +1,9 @@
+# Mounts this repo's src/ into the dev store as an app/code module
+# (Magento's standard module-dev layout), so code edits are live.
+# A composer path-repo symlink cannot work: Magento 2.4.8's template
+# path validator rejects templates whose real path resolves outside
+# the Magento root.
+services:
+  web:
+    volumes:
+      - "../src:/var/www/html/dev/magento/app/code/Tradeaze/ApiIntegration"
