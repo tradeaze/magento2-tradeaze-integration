@@ -14,34 +14,29 @@ use Magento\InventorySourceSelectionApi\Api\Data\AddressInterfaceFactory;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\OrderRepository;
 use Psr\Log\LoggerInterface;
-use Tradeaze\ApiIntegration\Api\TradeazeEndpoints\Delivery\CreateDeliveryInterface;
 use Tradeaze\ApiIntegration\Helper\Config;
-use Tradeaze\ApiIntegration\Model\TradeazeEndpoints\Delivery\DeliveryStrategyResolver;
+use Tradeaze\ApiIntegration\Service\DeliverySynchronizer;
 use Tradeaze\ApiIntegration\Service\InventorySourceValidator;
 use Tradeaze\ApiIntegration\Service\Tradeaze;
 
 class OrderPlaceAfter implements ObserverInterface
 {
-    /** @var CreateDeliveryInterface */
-    protected CreateDeliveryInterface $createDelivery;
-
     /**
-     * @param DeliveryStrategyResolver $deliveryStrategyResolver
      * @param Config $tradeazeConfig
      * @param OrderRepository $orderRepository
      * @param LoggerInterface $logger
      * @param InventorySourceValidator $inventorySourceValidator
      * @param AddressInterfaceFactory $addressFactory
+     * @param DeliverySynchronizer $deliverySynchronizer
      */
     public function __construct(
-        protected readonly DeliveryStrategyResolver $deliveryStrategyResolver,
         protected readonly Config $tradeazeConfig,
         protected readonly OrderRepository $orderRepository,
         protected readonly LoggerInterface $logger,
         protected readonly InventorySourceValidator $inventorySourceValidator,
         protected readonly AddressInterfaceFactory $addressFactory,
+        private readonly DeliverySynchronizer $deliverySynchronizer,
     ) {
-        $this->createDelivery = $this->deliveryStrategyResolver->resolve();
     }
 
     /**
@@ -52,54 +47,56 @@ class OrderPlaceAfter implements ObserverInterface
      */
     public function execute(Observer $observer): void
     {
-        if ($this->tradeazeConfig->isEnabled()) {
+        /** @var Order $order */
+        $order = $observer->getEvent()->getData('order');
 
-            /** @var Order $order */
-            $order = $observer->getEvent()->getData('order');
-
-            if (!in_array($order->getStatus(), ['pending', 'processing'])) {
-                return;
-            }
-
-            if (!str_contains($order->getShippingMethod(), 'tradeaze')) {
-                return;
-            }
-
-            try {
-                $response = $this->createDelivery->execute(
-                    [
-                        'request' => $order,
-                    ]
-                );
-                $order->setTradeazeOrderId($response['id']);
-                $order->setTradeazeOrderStatus('PENDING');
-
-                // Save the resolved source code for cron retry use
-                $sourceCode = $this->resolveSourceCodeForOrder($order);
-                if ($sourceCode) {
-                    $order->setData('tradeaze_source_code', $sourceCode);
-                }
-
-                $order->addCommentToStatusHistory(
-                    __('Tradeaze delivery created successfully. Order Id %1', $response['id'])
-                );
-                $this->orderRepository->save($order);
-            } catch (Exception $e) {
-                $this->logger->error($e->getMessage());
-
-                // Still save the source code even on failure, for cron retry
-                $sourceCode = $this->resolveSourceCodeForOrder($order);
-                if ($sourceCode) {
-                    $order->setData('tradeaze_source_code', $sourceCode);
-                }
-
-                $order->setTradeazeOrderStatus(Tradeaze::ORDER_STATUS_PATTERN_TO_RETRY . '1');
-                $order->addCommentToStatusHistory(
-                    __('Tradeaze delivery failed. Error was %1', $e->getMessage())
-                );
-                $this->orderRepository->save($order);
-            }
+        if (!str_starts_with((string) $order->getShippingMethod(), 'tradeaze_')) {
+            return;
         }
+
+        if (!$this->tradeazeConfig->isEnabled()) {
+            $this->logger->warning(
+                'Tradeaze order was not synchronized because the integration is disabled',
+                $this->getLogContext($order)
+            );
+            return;
+        }
+
+        $sourceCode = $this->resolveSourceCodeForOrder($order);
+        if ($sourceCode) {
+            $order->setData('tradeaze_source_code', $sourceCode);
+        }
+
+        if ($order->getState() !== Order::STATE_PROCESSING) {
+            $order->setTradeazeOrderStatus(Tradeaze::AWAITING_PROCESSING_STATUS);
+
+            $this->logger->info(
+                'Tradeaze delivery deferred until the Magento order is processing',
+                $this->getLogContext($order)
+            );
+            $this->orderRepository->save($order);
+            return;
+        }
+
+        $this->deliverySynchronizer->synchronize($order, 'order_placement');
+    }
+
+    /**
+     * Build safe structured context for Tradeaze order logs
+     *
+     * @param Order $order
+     * @return array
+     */
+    private function getLogContext(Order $order): array
+    {
+        return [
+            'order_id' => $order->getIncrementId(),
+            'entity_id' => $order->getEntityId(),
+            'state' => $order->getState(),
+            'status' => $order->getStatus(),
+            'shipping_method' => $order->getShippingMethod(),
+            'store_id' => $order->getStoreId(),
+        ];
     }
 
     /**

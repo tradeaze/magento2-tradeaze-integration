@@ -10,6 +10,10 @@
          * DELIVERED
          * REJECTED
          * CANCELLED
+         * AWAITING_PROCESSING
+         * FAILEDSYNC1-4
+         * FAILED
+         * NOT_REQUIRED
          */
 -->
         <column name="tradeaze_order_status" nullable="true"

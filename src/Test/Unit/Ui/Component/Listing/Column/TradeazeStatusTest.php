@@ -22,12 +22,15 @@ class TradeazeStatusTest extends TestCase
         $options = $this->statusSource->toOptionArray();
         $values = array_column($options, 'value');
 
-        $this->assertContains('PENDING', $values);
+        $this->assertContains(Tradeaze::PENDING_STATUS, $values);
         $this->assertContains('CONFIRMED', $values);
         $this->assertContains('DELIVERED', $values);
         $this->assertContains('REJECTED', $values);
         $this->assertContains('CANCELLED', $values);
         $this->assertContains('FAILED', $values);
+        $this->assertContains(Tradeaze::AWAITING_PROCESSING_STATUS, $values);
+        $this->assertNotContains('QUEUED', $values);
+        $this->assertContains(Tradeaze::NOT_REQUIRED_STATUS, $values);
     }
 
     public function testToOptionArrayContainsAllFailedSyncStatuses(): void
@@ -48,8 +51,8 @@ class TradeazeStatusTest extends TestCase
     {
         $options = $this->statusSource->toOptionArray();
 
-        // 5 standard statuses + MAX_NUMBER_OF_REATTEMPTS FAILEDSYNC + 1 FAILED
-        $expectedCount = 5 + Tradeaze::MAX_NUMBER_OF_REATTEMPTS + 1;
+        // 5 remote statuses + 2 local sync statuses + FAILEDSYNC attempts + 1 FAILED
+        $expectedCount = 5 + 2 + Tradeaze::MAX_NUMBER_OF_REATTEMPTS + 1;
         $this->assertCount($expectedCount, $options);
     }
 

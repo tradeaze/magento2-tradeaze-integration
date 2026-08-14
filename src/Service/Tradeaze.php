@@ -29,6 +29,9 @@ class Tradeaze
     public const MAX_NUMBER_OF_REATTEMPTS = 4;
     public const ORDER_STATUS_PATTERN_TO_RETRY = 'FAILEDSYNC';
     public const FAILED_STATUS = 'FAILED';
+    public const PENDING_STATUS = 'PENDING';
+    public const AWAITING_PROCESSING_STATUS = 'AWAITING_PROCESSING';
+    public const NOT_REQUIRED_STATUS = 'NOT_REQUIRED';
 
     /**
      * @param Config $config

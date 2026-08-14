@@ -169,12 +169,16 @@ Once everything above is in place, customers will see:
 
 Two new columns are available:
 
-- **Tradeaze Order Status**: the latest status received from Tradeaze (pending, confirmed, in transit, delivered, cancelled, etc.). Filterable.
+- **Tradeaze Order Status**: the current local synchronisation or remote delivery status (awaiting processing, failed sync, pending, confirmed, delivered, cancelled, etc.). Filterable.
 - **Tradeaze Order ID**: the identifier in Tradeaze's system. Hidden by default; show it via the grid column selector when you need to cross-reference with Tradeaze support.
 
 ### Automatic retries
 
-If the Tradeaze API is briefly unreachable when an order is placed or updated, Magento queues a retry. A cron job (`tradeaze_apiintegration_retryfailedtradeazeorders`) runs every 5 minutes and re-sends any failed requests. Make sure Magento cron is configured and running on your server. Without it, retries will not happen.
+Tradeaze delivery creation waits until Magento reaches its standard **Processing** order state. Orders waiting for an asynchronous or redirect payment are shown as **AWAITING PROCESSING**. When payment is received or authorised and Magento commits the order as Processing, the plugin immediately calls the Tradeaze API.
+
+If the Tradeaze API is briefly unreachable, the order is marked **FAILEDSYNC1**. A cron job (`tradeaze_apiintegration_retryfailedtradeazeorders`) runs every 5 minutes to recover missed Processing transitions and re-send failed requests. Make sure Magento cron is configured and running on your server. Without it, failed deliveries will not be retried.
+
+Orders canceled or closed before a delivery is created are shown as **NOT REQUIRED** and are not sent to Tradeaze.
 
 ---
 

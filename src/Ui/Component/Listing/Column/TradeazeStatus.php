@@ -18,7 +18,12 @@ class TradeazeStatus implements OptionSourceInterface
     public function toOptionArray(): array
     {
         $statuses = [
-            ['value' => 'PENDING', 'label' => __('PENDING')],
+            [
+                'value' => Tradeaze::AWAITING_PROCESSING_STATUS,
+                'label' => __('AWAITING PROCESSING'),
+            ],
+            ['value' => Tradeaze::NOT_REQUIRED_STATUS, 'label' => __('NOT REQUIRED')],
+            ['value' => Tradeaze::PENDING_STATUS, 'label' => __('PENDING')],
             ['value' => 'CONFIRMED', 'label' => __('CONFIRMED')],
             ['value' => 'DELIVERED', 'label' => __('DELIVERED')],
             ['value' => 'REJECTED', 'label' => __('REJECTED')],

@@ -7,108 +7,73 @@ declare(strict_types=1);
 
 namespace Tradeaze\ApiIntegration\Cron;
 
-use Exception;
-use Magento\Framework\Exception\AlreadyExistsException;
-use Magento\Framework\Exception\InputException;
-use Magento\Framework\Exception\NoSuchEntityException;
-use Magento\InventoryApi\Api\SourceRepositoryInterface;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\OrderRepository;
 use Magento\Sales\Model\ResourceModel\Order\CollectionFactory;
 use Psr\Log\LoggerInterface;
-use Tradeaze\ApiIntegration\Api\TradeazeEndpoints\Delivery\CreateDeliveryInterface;
-use Tradeaze\ApiIntegration\Helper\Config;
-use Tradeaze\ApiIntegration\Model\TradeazeEndpoints\Delivery\DeliveryStrategyResolver;
+use Tradeaze\ApiIntegration\Service\DeliverySynchronizer;
 use Tradeaze\ApiIntegration\Service\Tradeaze;
 
 class ReTryFailedTradeazeOrders
 {
-
-    /** @var CreateDeliveryInterface */
-    protected CreateDeliveryInterface $createDelivery;
-
     /**
-     * @param DeliveryStrategyResolver $deliveryStrategyResolver
-     * @param Config $tradeazeConfig
      * @param CollectionFactory $orderCollectionFactory
      * @param OrderRepository $orderRepository
      * @param LoggerInterface $logger
-     * @param SourceRepositoryInterface $sourceRepository
+     * @param DeliverySynchronizer $deliverySynchronizer
      */
     public function __construct(
-        protected readonly DeliveryStrategyResolver $deliveryStrategyResolver,
-        protected readonly Config $tradeazeConfig,
-        protected readonly CollectionFactory $orderCollectionFactory,
-        protected readonly OrderRepository $orderRepository,
-        protected readonly LoggerInterface $logger,
-        protected readonly SourceRepositoryInterface $sourceRepository
+        private readonly CollectionFactory $orderCollectionFactory,
+        private readonly OrderRepository $orderRepository,
+        private readonly LoggerInterface $logger,
+        private readonly DeliverySynchronizer $deliverySynchronizer,
     ) {
-        $this->createDelivery = $this->deliveryStrategyResolver->resolve();
     }
 
     /**
-     * Retries failed Tradeaze delivery creation (up to 4 attempts before marking FAILED)
+     * Recover missed processing transitions and retry failed Tradeaze delivery creation
      *
      * @return void
-     * @throws AlreadyExistsException
-     * @throws InputException
-     * @throws NoSuchEntityException
      */
     public function execute(): void
     {
         $collection = $this->orderCollectionFactory->create()
             ->addAttributeToSelect('*')
             ->addFieldToFilter(
-                'tradeaze_order_status',
-                ['like' => Tradeaze::ORDER_STATUS_PATTERN_TO_RETRY . '%']
+                ['tradeaze_order_status', 'tradeaze_order_status'],
+                [
+                    ['like' => Tradeaze::ORDER_STATUS_PATTERN_TO_RETRY . '%'],
+                    ['eq' => Tradeaze::AWAITING_PROCESSING_STATUS],
+                ]
             )
+            ->addFieldToFilter(
+                'state',
+                ['in' => [Order::STATE_PROCESSING, Order::STATE_CANCELED, Order::STATE_CLOSED]]
+            )
+            ->setOrder('created_at', 'ASC')
             ->setPageSize(20);
 
         /** @var Order $order */
         foreach ($collection->getItems() as $order) {
-            try {
-                $params = [
-                    'request' => $order,
-                ];
-
-                // Use the stored source code from the original order placement
-                $sourceCode = $order->getData('tradeaze_source_code');
-                if ($sourceCode) {
-                    try {
-                        $source = $this->sourceRepository->get($sourceCode);
-                        $params['resolved_source'] = $source;
-                    } catch (NoSuchEntityException $e) {
-                        $this->logger->warning(
-                            "Tradeaze cron: stored source '{$sourceCode}' not found, will re-resolve"
-                        );
-                    }
-                }
-
-                $response = $this->createDelivery->execute($params);
-                $order->setTradeazeOrderId($response['id']);
-                $order->setTradeazeOrderStatus('PENDING');
+            $currentStatus = (string) $order->getTradeazeOrderStatus();
+            if (in_array($order->getState(), [Order::STATE_CANCELED, Order::STATE_CLOSED], true)) {
+                $order->setTradeazeOrderStatus(Tradeaze::NOT_REQUIRED_STATUS);
                 $order->addCommentToStatusHistory(
-                    __('Tradeaze delivery created successfully. Order Id %1', $response['id'])
+                    __('Tradeaze delivery was not created because the Magento order was canceled or closed.')
+                );
+                $this->logger->info(
+                    'Tradeaze delivery is no longer required',
+                    [
+                        'order_id' => $order->getIncrementId(),
+                        'state' => $order->getState(),
+                        'tradeaze_status' => $currentStatus,
+                    ]
                 );
                 $this->orderRepository->save($order);
-            } catch (Exception $e) {
-                $this->logger->error($e->getMessage());
-                $currentStatus = $order->getTradeazeOrderStatus();
-                $attemptNo = (int) str_replace(
-                    Tradeaze::ORDER_STATUS_PATTERN_TO_RETRY,
-                    '',
-                    $currentStatus
-                );
-                $attemptNo++;
-                $newStatus = $attemptNo <= Tradeaze::MAX_NUMBER_OF_REATTEMPTS
-                    ? Tradeaze::ORDER_STATUS_PATTERN_TO_RETRY . $attemptNo
-                    : Tradeaze::FAILED_STATUS;
-                $order->addCommentToStatusHistory(
-                    __('Attempt #%1 failed. Tradeaze delivery error: %2', $attemptNo, $e->getMessage())
-                );
-                $order->setTradeazeOrderStatus($newStatus);
-                $this->orderRepository->save($order);
+                continue;
             }
+
+            $this->deliverySynchronizer->synchronize($order, 'cron');
         }
     }
 }

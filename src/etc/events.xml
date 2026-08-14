@@ -9,4 +9,8 @@
         <observer name="tradeaze_apiintegration_observer_sales_orderplaceafter_sales_order_place_after"
                   instance="Tradeaze\ApiIntegration\Observer\Sales\OrderPlaceAfter"/>
     </event>
+    <event name="sales_order_save_commit_after">
+        <observer name="tradeaze_apiintegration_observer_sales_ordersavecommitafter"
+                  instance="Tradeaze\ApiIntegration\Observer\Sales\OrderSaveCommitAfter"/>
+    </event>
 </config>

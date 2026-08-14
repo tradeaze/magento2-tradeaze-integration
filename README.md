@@ -127,7 +127,7 @@ Orders placed with Tradeaze shipping have the following columns on `sales_order`
 
 | Column | Code | Description |
 |--------|------|-------------|
-| Tradeaze Order Status | `tradeaze_order_status` | PENDING, CONFIRMED, DELIVERED, REJECTED, CANCELLED, FAILEDSYNC1-4, FAILED |
+| Tradeaze Order Status | `tradeaze_order_status` | Local sync states (`AWAITING_PROCESSING`, `FAILEDSYNC1-4`, `FAILED`, `NOT_REQUIRED`) and remote delivery states (`PENDING`, `CONFIRMED`, `DELIVERED`, `REJECTED`, `CANCELLED`) |
 | Tradeaze Order ID | `tradeaze_order_id` | The delivery ID returned by the Tradeaze API |
 | Tradeaze Source Code | `tradeaze_source_code` | The MSI inventory source code used for pickup |
 
@@ -153,19 +153,25 @@ All three columns are stored on `sales_order` and `sales_order_grid`. In the Sal
 ### Order Placement
 
 1. The `checkout_submit_before` observer re-validates that the selected shipping method is still available.
-2. The `sales_order_place_after` observer creates the delivery in Tradeaze via `POST /v1/deliveries`.
-3. On success: the Tradeaze order ID and source code are saved on the order, status set to `PENDING`.
-4. On failure: status set to `FAILEDSYNC1`, source code still saved for cron retry.
+2. The `sales_order_place_after` observer checks Magento's programmatic order **state**. Orders that are not yet `processing` are saved as `AWAITING_PROCESSING` instead of being silently skipped.
+3. When Magento commits the order in the `processing` state, `sales_order_save_commit_after` immediately creates the Tradeaze delivery via `POST /v1/deliveries`. This works with asynchronous and redirect payment flows without depending on a specific payment provider.
+4. If an order is already `processing` during placement, the same delivery synchronizer runs immediately.
+5. On success: the Tradeaze order ID and source code are saved on the order, status set to `PENDING`.
+6. On failure: status set to `FAILEDSYNC1`, source code still saved for cron retry.
 
 ### Failed Delivery Retry
 
-A cron job runs every 5 minutes (`*/5 * * * *`) to retry failed deliveries:
+A cron job runs every 5 minutes (`*/5 * * * *`) to recover missed processing transitions and retry failed deliveries:
 
-- Picks up orders with status `FAILEDSYNC1` through `FAILEDSYNC4` (batch limit: 20 per run).
+- Picks up processing `AWAITING_PROCESSING` orders and `FAILEDSYNC1` through `FAILEDSYNC4` orders (batch limit: 20 per run).
+- Excludes awaiting orders that have not reached Magento's standard `processing` state before applying the batch limit.
+- Marks orders canceled or closed before creation as `NOT_REQUIRED`.
 - Re-uses the stored source code from the original order placement.
 - On success: sets status to `PENDING`.
 - On failure: increments the status (e.g. `FAILEDSYNC1` > `FAILEDSYNC2`).
-- After 4 total attempts: marks as `FAILED` (terminal, no further retries).
+- After the initial failure and four failed retry attempts: marks as `FAILED` (terminal, no further retries).
+
+See [Order synchronisation](docs/order-synchronisation.md) for state transitions, logging, and recovery guidance.
 
 ### Inventory Source Selection
 
