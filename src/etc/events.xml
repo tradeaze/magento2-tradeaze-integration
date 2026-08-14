@@ -9,4 +9,8 @@
         <observer name="tradeaze_apiintegration_observer_sales_orderplaceafter_sales_order_place_after"
                   instance="Tradeaze\ApiIntegration\Observer\Sales\OrderPlaceAfter"/>
     </event>
+    <event name="sales_convert_quote_to_order">
+        <observer name="tradeaze_copy_delivery_selection_to_order"
+                  instance="Tradeaze\ApiIntegration\Observer\Sales\ConvertQuoteToOrder"/>
+    </event>
 </config>

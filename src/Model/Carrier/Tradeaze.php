@@ -29,6 +29,7 @@ use Magento\Shipping\Model\Rate\ResultFactory;
 use Psr\Log\LoggerInterface;
 use Tradeaze\ApiIntegration\Api\TradeazeEndpoints\Quote\GetDeliveryQuoteInterface;
 use Tradeaze\ApiIntegration\Helper\Config;
+use Tradeaze\ApiIntegration\Model\DeliverySelection;
 use Tradeaze\ApiIntegration\Model\TradeazeEndpoints\Quote\QuoteStrategyResolver;
 
 class Tradeaze extends AbstractCarrier implements
@@ -118,6 +119,12 @@ class Tradeaze extends AbstractCarrier implements
             $method->setMethodTitle($methodData['methodTitle']);
             $method->setPrice($methodData['methodPrice']);
             $method->setCost($methodData['methodCost']);
+
+            foreach (DeliverySelection::PERSISTED_FIELDS as $field) {
+                if (isset($methodData[$field])) {
+                    $method->setData($field, $methodData[$field]);
+                }
+            }
 
             $result->append($method);
         }

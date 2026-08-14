@@ -18,6 +18,7 @@ use Psr\Log\LoggerInterface;
 use Tradeaze\ApiIntegration\Api\TradeazeEndpoints\Delivery\CreateDeliveryInterface;
 use Tradeaze\ApiIntegration\Cron\ReTryFailedTradeazeOrders;
 use Tradeaze\ApiIntegration\Helper\Config;
+use Tradeaze\ApiIntegration\Model\DeliverySelection;
 use Tradeaze\ApiIntegration\Model\TradeazeEndpoints\Delivery\DeliveryStrategyResolver;
 use Tradeaze\ApiIntegration\Service\Tradeaze;
 
@@ -53,7 +54,11 @@ class ReTryFailedTradeazeOrdersTest extends TestCase
         );
     }
 
-    private function createOrderMock(string $status, ?string $sourceCode = null): Order&MockObject
+    private function createOrderMock(
+        string $status,
+        ?string $sourceCode = null,
+        array $selectionData = []
+    ): Order&MockObject
     {
         $order = $this->getMockBuilder(Order::class)
             ->disableOriginalConstructor()
@@ -63,10 +68,9 @@ class ReTryFailedTradeazeOrdersTest extends TestCase
 
         $order->method('getTradeazeOrderStatus')->willReturn($status);
         $order->method('getData')
-            ->willReturnCallback(fn($key) => match ($key) {
-                'tradeaze_source_code' => $sourceCode,
-                default => null
-            });
+            ->willReturnCallback(fn($key) => $key === 'tradeaze_source_code'
+                ? $sourceCode
+                : ($selectionData[$key] ?? null));
 
         return $order;
     }
@@ -205,6 +209,31 @@ class ReTryFailedTradeazeOrdersTest extends TestCase
                 return !isset($params['resolved_source']);
             }))
             ->willReturn(['id' => 'trz-123']);
+
+        $this->cron->execute();
+    }
+
+    public function testRetryKeepsPersistedAbsoluteDeliverySelection(): void
+    {
+        $selectionData = [
+            DeliverySelection::FIELD_DELIVERY_OPTION_ID => 'car-next-working-day',
+            DeliverySelection::FIELD_DELIVERY_DATE => '2026-08-17',
+            DeliverySelection::FIELD_WINDOW_START_UTC => '2026-08-17T08:30:00Z',
+        ];
+        $order = $this->createOrderMock('FAILEDSYNC1', null, $selectionData);
+        $this->setupCollection([$order]);
+
+        $this->createDelivery->expects($this->once())
+            ->method('execute')
+            ->with($this->callback(static function (array $params) use ($selectionData): bool {
+                foreach ($selectionData as $field => $expected) {
+                    if ($params['request']->getData($field) !== $expected) {
+                        return false;
+                    }
+                }
+                return true;
+            }))
+            ->willReturn(['id' => 'trz-absolute']);
 
         $this->cron->execute();
     }

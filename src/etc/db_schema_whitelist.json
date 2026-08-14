@@ -1,9 +1,26 @@
 {
+    "quote_shipping_rate": {
+        "column": {
+            "tradeaze_delivery_option_id": true,
+            "tradeaze_delivery_date": true,
+            "tradeaze_window_start_utc": true
+        }
+    },
+    "quote_address": {
+        "column": {
+            "tradeaze_delivery_option_id": true,
+            "tradeaze_delivery_date": true,
+            "tradeaze_window_start_utc": true
+        }
+    },
     "sales_order": {
         "column": {
             "tradeaze_order_status": true,
             "tradeaze_order_id": true,
-            "tradeaze_source_code": true
+            "tradeaze_source_code": true,
+            "tradeaze_delivery_option_id": true,
+            "tradeaze_delivery_date": true,
+            "tradeaze_window_start_utc": true
         }
     },
     "sales_order_grid": {

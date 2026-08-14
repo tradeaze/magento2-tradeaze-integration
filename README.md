@@ -150,12 +150,19 @@ All three columns are stored on `sales_order` and `sales_order_grid`. In the Sal
 5. Available vehicle options (e.g. Car, Van) with pricing are displayed as shipping methods.
 6. The cutoff time buffer filters out delivery windows that are too close to expiry.
 
+Tradeaze is the source of truth for delivery availability. It decides which next-working-day windows to return,
+including weekends, disabled Saturdays, and holidays. Magento does not calculate or advance working days.
+
 ### Order Placement
 
-1. The `checkout_submit_before` observer re-validates that the selected shipping method is still available.
-2. The `sales_order_place_after` observer creates the delivery in Tradeaze via `POST /v1/deliveries`.
-3. On success: the Tradeaze order ID and source code are saved on the order, status set to `PENDING`.
-4. On failure: status set to `FAILEDSYNC1`, source code still saved for cron retry.
+1. The `checkout_submit_before` observer performs an uncached re-validation that the exact selected delivery option
+   and window are still available.
+2. The selected Tradeaze delivery option, delivery date, and absolute UTC window start are preserved on the Magento
+   order.
+3. The `sales_order_place_after` observer creates the delivery in Tradeaze via `POST /v1/deliveries`, using the exact
+   selected option ID and UTC window start.
+4. On success: the Tradeaze order ID and source code are saved on the order, status set to `PENDING`.
+5. On failure: status set to `FAILEDSYNC1`, source code and selected delivery window remain available for cron retry.
 
 ### Failed Delivery Retry
 
@@ -163,6 +170,7 @@ A cron job runs every 5 minutes (`*/5 * * * *`) to retry failed deliveries:
 
 - Picks up orders with status `FAILEDSYNC1` through `FAILEDSYNC4` (batch limit: 20 per run).
 - Re-uses the stored source code from the original order placement.
+- Re-uses the original absolute Tradeaze delivery window; it is not recalculated from the retry date or time.
 - On success: sets status to `PENDING`.
 - On failure: increments the status (e.g. `FAILEDSYNC1` > `FAILEDSYNC2`).
 - After 4 total attempts: marks as `FAILED` (terminal, no further retries).
@@ -245,7 +253,8 @@ Quote responses are cached using a custom `tradeaze` cache type.
 - **Invalidation:** Time-based (5 min TTL). The cache is also flushed automatically when Tradeaze admin configuration is saved.
 - **Admin:** The cache type appears in **System > Cache Management** and can be flushed manually.
 
-The cutoff time buffer is applied **after** cache retrieval, so cached quotes still have stale delivery windows filtered out based on the current time.
+Order submission bypasses the quote cache and asks Tradeaze to validate the exact selected option again. A window that
+expired after it was displayed is rejected before Magento creates the order.
 
 ---
 

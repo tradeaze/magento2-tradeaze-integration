@@ -176,6 +176,14 @@ Two new columns are available:
 
 If the Tradeaze API is briefly unreachable when an order is placed or updated, Magento queues a retry. A cron job (`tradeaze_apiintegration_retryfailedtradeazeorders`) runs every 5 minutes and re-sends any failed requests. Make sure Magento cron is configured and running on your server. Without it, retries will not happen.
 
+The selected delivery option and its absolute UTC window are retained with the order. A retry after midnight uses the
+same delivery window; Magento does not reinterpret it as a new "today" or "tomorrow" selection.
+
+Tradeaze remains responsible for which next-working-day options are available, including disabled Saturdays and
+holidays. Magento displays the returned options and does not calculate working days itself. Immediately before an
+order is placed, the extension checks the exact selected option with Tradeaze again and asks the customer to choose a
+new option if it has expired or is no longer available.
+
 ---
 
 ## 8. Custom Theme Integration

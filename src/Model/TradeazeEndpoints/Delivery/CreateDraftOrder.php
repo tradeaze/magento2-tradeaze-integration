@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Tradeaze\ApiIntegration\Model\TradeazeEndpoints\Delivery;
 
+use DateTimeImmutable;
 use DateTimeZone;
 use Exception;
 use Magento\Framework\Exception\LocalizedException;
@@ -17,6 +18,7 @@ use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Address as OrderAddress;
 use Magento\Sales\Model\Order\Item;
 use Tradeaze\ApiIntegration\Api\TradeazeEndpoints\Delivery\CreateDeliveryInterface;
+use Tradeaze\ApiIntegration\Model\DeliverySelection;
 use Tradeaze\ApiIntegration\Model\TradeazeEndpoints\ClientAbstract;
 
 class CreateDraftOrder extends ClientAbstract implements CreateDeliveryInterface
@@ -30,52 +32,12 @@ class CreateDraftOrder extends ClientAbstract implements CreateDeliveryInterface
         $requestObject = $this->params['request'];
         $shippingAddress = $requestObject->getShippingAddress();
 
-        $method = $requestObject->getShippingMethod(); // e.g. "tradeaze_CAR_EVENING_TOMORROW0814"
-
-        $matchResult = preg_match(
-            '/^tradeaze_(.+)_(TODAY|TOMORROW)(\d{2})(\d{2})$/',
-            $method,
-            $methodData,
-        );
-
-        if ($matchResult !== 1) {
-            throw new ValidatorException(
-                __('Invalid Tradeaze shipping method format: %1', $method),
-            );
-        }
-
-        $deliveryOptionCode = $methodData[1]; // CAR_EVENING
-        $dayFlag = $methodData[2];            // TODAY / TOMORROW
-        $hour = (int) $methodData[3];
-        $minute = (int) $methodData[4];
-
-        $date = $this->timezone->date();
-
-        if ($dayFlag === 'TOMORROW') {
-            try {
-                $date->modify('+1 day');
-            } catch (Exception $e) {
-                $this->logger->error($e->getMessage());
-            }
-        }
-
-        $date->setTime($hour, $minute, 0);
-
-        /**
-         * An ISO string date of the time the delivery is scheduled to start.
-         * If not provided, defaults to the current time.
-         *
-         * Match pattern:
-         * ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$
-         * Convert to UTC since regex ends with Z, which in ISO-8601 specifically means "UTC time"
-         */
-        $date->setTimezone(new DateTimeZone('UTC'));
-
-        $startTime = $date->format('Y-m-d\TH:i:s\Z');
+        $selection = $this->getDeliverySelection($requestObject);
+        $deliveryRequestData = $selection->toDeliveryRequestData();
 
         $request = [
             'externalId' => $requestObject->getIncrementId(),
-            'deliveryOptionId' => $deliveryOptionCode,
+            'deliveryOptionId' => $deliveryRequestData['deliveryOptionId'],
             'tips' => [
                 'amount' => 0,//required
                 'currency' => 'GBP'//required
@@ -105,7 +67,7 @@ class CreateDraftOrder extends ClientAbstract implements CreateDeliveryInterface
                 'type' => 'DROP_OFF'//required
             ],
 //            'metadata' => [],
-            'startTime' => $startTime
+            'startTime' => $deliveryRequestData['startTime']
         ];
 
         foreach ($requestObject->getAllItems() as $item) {
@@ -133,6 +95,40 @@ class CreateDraftOrder extends ClientAbstract implements CreateDeliveryInterface
         }
 
         return $request;
+    }
+
+    /**
+     * Load the canonical selection, falling back to the legacy method format for existing orders.
+     *
+     * @param Order $order
+     * @return DeliverySelection
+     * @throws ValidatorException
+     */
+    private function getDeliverySelection(Order $order): DeliverySelection
+    {
+        $persistedData = [];
+        foreach (DeliverySelection::PERSISTED_FIELDS as $field) {
+            $persistedData[$field] = $order->getData($field);
+        }
+
+        try {
+            if (array_filter($persistedData, static fn(mixed $value): bool => $value !== null && $value !== '')) {
+                return DeliverySelection::fromPersistedData($persistedData);
+            }
+
+            $createdAt = $order->getCreatedAt();
+            if (!is_string($createdAt) || $createdAt === '') {
+                throw new \InvalidArgumentException('Order creation time is required for a legacy selection.');
+            }
+
+            return DeliverySelection::fromLegacyShippingMethod(
+                (string) $order->getShippingMethod(),
+                new DateTimeImmutable($createdAt, new DateTimeZone('UTC')),
+                new DateTimeZone((string) $this->timezone->getConfigTimezone()),
+            );
+        } catch (Exception $e) {
+            throw new ValidatorException(__('Invalid Tradeaze delivery selection: %1', $e->getMessage()), $e);
+        }
     }
 
     /**

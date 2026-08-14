@@ -1,6 +1,22 @@
 <?xml version="1.0" ?>
 <schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+    <table name="quote_shipping_rate">
+        <column name="tradeaze_delivery_option_id" nullable="true" xsi:type="varchar"
+                comment="Tradeaze Delivery Option ID" length="255"/>
+        <column name="tradeaze_delivery_date" nullable="true" xsi:type="date"
+                comment="Tradeaze Delivery Date"/>
+        <column name="tradeaze_window_start_utc" nullable="true" xsi:type="varchar"
+                comment="Tradeaze Window Start UTC" length="32"/>
+    </table>
+    <table name="quote_address">
+        <column name="tradeaze_delivery_option_id" nullable="true" xsi:type="varchar"
+                comment="Tradeaze Delivery Option ID" length="255"/>
+        <column name="tradeaze_delivery_date" nullable="true" xsi:type="date"
+                comment="Tradeaze Delivery Date"/>
+        <column name="tradeaze_window_start_utc" nullable="true" xsi:type="varchar"
+                comment="Tradeaze Window Start UTC" length="32"/>
+    </table>
     <table name="sales_order">
 <!--
         /**
@@ -18,6 +34,12 @@
                 xsi:type="varchar" comment="Tradeaze Order ID" length="255"/>
         <column name="tradeaze_source_code" nullable="true"
                 xsi:type="varchar" comment="Tradeaze Source Code" length="255"/>
+        <column name="tradeaze_delivery_option_id" nullable="true" xsi:type="varchar"
+                comment="Tradeaze Delivery Option ID" length="255"/>
+        <column name="tradeaze_delivery_date" nullable="true" xsi:type="date"
+                comment="Tradeaze Delivery Date"/>
+        <column name="tradeaze_window_start_utc" nullable="true" xsi:type="varchar"
+                comment="Tradeaze Window Start UTC" length="32"/>
     </table>
     <table name="sales_order_grid">
         <column name="tradeaze_order_status" nullable="true"

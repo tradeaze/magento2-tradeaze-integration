@@ -14,6 +14,7 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\ValidatorException;
 use Magento\Framework\Validator\Exception;
 use Tradeaze\ApiIntegration\Api\TradeazeEndpoints\Quote\GetDeliveryQuoteInterface;
+use Tradeaze\ApiIntegration\Model\DeliverySelection;
 use Tradeaze\ApiIntegration\Model\TradeazeEndpoints\Quote\QuoteStrategyResolver;
 
 class SubmitBefore implements ObserverInterface
@@ -44,24 +45,40 @@ class SubmitBefore implements ObserverInterface
     {
         $quote = $observer->getEvent()->getQuote();
         $shippingMethod = $quote->getShippingAddress()->getShippingMethod();
-        if (!str_contains($shippingMethod, 'tradeaze_')) {
+        if (!str_starts_with((string) $shippingMethod, 'tradeaze_')) {
             return;
         }
 
         $methodDataList = $this->getDeliveryQuote->execute(
             [
                 'request' => $quote,
-                'use_cache' => true,
+                'use_cache' => false,
             ]
         );
 
-        $methodCodes = array_column($methodDataList, 'methodCode');
-
         $selectedCode = str_replace('tradeaze_', '', $shippingMethod);
-        if (!in_array($selectedCode, $methodCodes)) {
+        $selectedMethod = null;
+        foreach ($methodDataList as $methodData) {
+            if ($selectedCode === $methodData['methodCode']
+                || $selectedCode === ($methodData['legacyMethodCode'] ?? null)
+            ) {
+                $selectedMethod = $methodData;
+                break;
+            }
+        }
+
+        if ($selectedMethod === null) {
             throw new ValidatorException(__(
                 'The selected shipping method is no longer available. Select the shipping method and try again.'
             ));
         }
+
+        try {
+            $selection = DeliverySelection::fromPersistedData($selectedMethod);
+        } catch (\InvalidArgumentException $e) {
+            throw new ValidatorException(__('The selected Tradeaze delivery option is invalid.'), $e);
+        }
+
+        $quote->getShippingAddress()->addData($selection->toPersistedData());
     }
 }

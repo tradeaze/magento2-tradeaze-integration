@@ -32,4 +32,8 @@
             </argument>
         </arguments>
     </type>
+    <type name="Magento\Quote\Model\Quote\Address\Rate">
+        <plugin name="tradeaze_persist_delivery_selection"
+                type="Tradeaze\ApiIntegration\Plugin\Quote\Address\Rate"/>
+    </type>
 </config>

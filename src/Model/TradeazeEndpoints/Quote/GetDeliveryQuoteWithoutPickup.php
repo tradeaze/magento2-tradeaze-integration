@@ -15,6 +15,7 @@ use Magento\Quote\Api\Data\CartInterface;
 use Magento\Quote\Model\Quote\Address as QuoteAddress;
 use Magento\Quote\Model\Quote\Item;
 use Tradeaze\ApiIntegration\Api\TradeazeEndpoints\Quote\GetDeliveryQuoteInterface;
+use Tradeaze\ApiIntegration\Model\DeliverySelection;
 use Tradeaze\ApiIntegration\Model\TradeazeEndpoints\ClientAbstract;
 
 class GetDeliveryQuoteWithoutPickup extends ClientAbstract implements GetDeliveryQuoteInterface
@@ -59,43 +60,48 @@ class GetDeliveryQuoteWithoutPickup extends ClientAbstract implements GetDeliver
         $methods = [];
 
         if (isset($responseObject['cheapestAvailableVehicleOptions'])) {
+            $now = $this->timezone->date();
+            $today = $now->format('Y-m-d');
+            if ($cutoffTimeBuffer = $this->tradeazeConfig->getDeliveryCutoffTimeBuffer()) {
+                try {
+                    $now->modify('+' . $cutoffTimeBuffer . ' minutes');
+                } catch (Exception $e) {
+                    $this->logger->error($e->getMessage());
+                }
+            }
+
             foreach ($responseObject['cheapestAvailableVehicleOptions'] as $methodData) {
-                $now = $this->timezone->date(null, null, false);
-                if ($cutoffTimeBuffer = $this->tradeazeConfig->getDeliveryCutoffTimeBuffer()) {
-                    try {
-                        $now->modify('+' . $cutoffTimeBuffer . ' minutes');
-                    } catch (Exception $e) {
-                        $this->logger->error($e->getMessage());
-                    }
+                try {
+                    $selection = DeliverySelection::fromQuoteOption($methodData);
+                } catch (Exception $e) {
+                    $this->logger->error('Invalid Tradeaze delivery option: ' . $e->getMessage());
+                    continue;
                 }
 
-                $cutOffTime = $this->timezone->date($methodData['cutOffTime']['timestamp'], null, false);
+                $cutOffTime = $this->timezone->date($methodData['cutOffTime']['timestamp']);
 
-                if ($methodData['isAvailable']
-                    && (($now < $cutOffTime) || $methodData['deliveryDate'] != $now->format('Y-m-d'))
-                ) {
-
-                    // e.g. "2026-02-07T08:04:00.000Z"
-                    $windowStart = $this->timezone->date($methodData['windowStart']);
-                    $dataSuffix =
-                        $windowStart->format('Y-m-d') === $this->timezone->date()->format('Y-m-d')
+                if ($methodData['isAvailable'] && $now < $cutOffTime) {
+                    $windowStart = $this->timezone->date($selection->getWindowStartUtc());
+                    $legacySuffix =
+                        $windowStart->format('Y-m-d') === $today
                         ? '_TODAY'
                         : '_TOMORROW';
 
-                    // Add 10 minutes to avoid rejections and get HHMM
-                    $timePart = $windowStart->modify('+10 minutes')->format('Hi');
-
-                    $dataSuffix .= $timePart;
+                    $legacyWindowStart = clone $windowStart;
+                    $legacySuffix .= $legacyWindowStart->modify('+10 minutes')->format('Hi');
 
                     $methodPrice = $methodData['deliveryPrice']['amount'] + $methodData['serviceCharge']['amount'];
-                    $methods[] = [
-                        'methodCode' => $methodData['id'] . $dataSuffix,
+                    $shippingMethod = [
+                        'methodCode' => $selection->getMethodCode(),
+                        'legacyMethodCode' => $selection->getDeliveryOptionId() . $legacySuffix,
                         'methodTitle' => $methodData['displayName'],
                         'methodPrice' => $methodPrice,
                         'methodCost' => $methodPrice,
-                        'methodDeliveryDate' => $methodData['deliveryDate'],
-                        'methodWindowStart' => $methodData['windowStart'],
                     ];
+                    foreach ($selection->toPersistedData() as $field => $value) {
+                        $shippingMethod[$field] = $value;
+                    }
+                    $methods[] = $shippingMethod;
                 }
             }
         }
