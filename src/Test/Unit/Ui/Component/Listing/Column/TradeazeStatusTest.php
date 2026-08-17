@@ -22,6 +22,7 @@ class TradeazeStatusTest extends TestCase
         $options = $this->statusSource->toOptionArray();
         $values = array_column($options, 'value');
 
+        $this->assertContains(Tradeaze::AWAITING_PAYMENT_STATUS, $values);
         $this->assertContains('PENDING', $values);
         $this->assertContains('CONFIRMED', $values);
         $this->assertContains('DELIVERED', $values);
@@ -49,8 +50,8 @@ class TradeazeStatusTest extends TestCase
     {
         $options = $this->statusSource->toOptionArray();
 
-        // 5 standard statuses + FAILEDSYNC0..MAX_NUMBER_OF_REATTEMPTS + 1 FAILED
-        $expectedCount = 5 + (Tradeaze::MAX_NUMBER_OF_REATTEMPTS + 1) + 1;
+        // AWAITINGPAYMENT + 5 standard statuses + FAILEDSYNC0..MAX_NUMBER_OF_REATTEMPTS + FAILED
+        $expectedCount = 1 + 5 + (Tradeaze::MAX_NUMBER_OF_REATTEMPTS + 1) + 1;
         $this->assertCount($expectedCount, $options);
     }
 

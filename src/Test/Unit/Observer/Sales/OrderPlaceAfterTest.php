@@ -18,6 +18,7 @@ use Tradeaze\ApiIntegration\Helper\Config;
 use Tradeaze\ApiIntegration\Model\TradeazeEndpoints\Delivery\DeliveryStrategyResolver;
 use Tradeaze\ApiIntegration\Observer\Sales\OrderPlaceAfter;
 use Tradeaze\ApiIntegration\Service\InventorySourceValidator;
+use Tradeaze\ApiIntegration\Service\OrderPaymentStatus;
 
 class OrderPlaceAfterTest extends TestCase
 {
@@ -26,6 +27,14 @@ class OrderPlaceAfterTest extends TestCase
     private OrderRepository&MockObject $orderRepository;
     private LoggerInterface&MockObject $logger;
     private CreateDeliveryInterface&MockObject $createDelivery;
+
+    /**
+     * What OrderPaymentStatus::isPaidInFull() reports for this test
+     *
+     * Read through a callback rather than a fixed willReturn() so an individual test can flip
+     * it without having to re-stub a mock that setUp() has already configured.
+     */
+    private bool $paidInFull = true;
 
     protected function setUp(): void
     {
@@ -39,13 +48,18 @@ class OrderPlaceAfterTest extends TestCase
             ->getMock();
         $this->logger = $this->createMock(LoggerInterface::class);
 
+        $orderPaymentStatus = $this->createMock(OrderPaymentStatus::class);
+        $orderPaymentStatus->method('isPaidInFull')
+            ->willReturnCallback(fn() => $this->paidInFull);
+
         $this->observer = new OrderPlaceAfter(
             $deliveryStrategyResolver,
             $this->config,
             $this->orderRepository,
             $this->logger,
             $this->createMock(InventorySourceValidator::class),
-            $this->createMock(AddressInterfaceFactory::class)
+            $this->createMock(AddressInterfaceFactory::class),
+            $orderPaymentStatus
         );
     }
 
@@ -121,11 +135,14 @@ class OrderPlaceAfterTest extends TestCase
     public function testDefersPendingPaymentOrderToRetryCron(): void
     {
         $this->config->method('isEnabled')->willReturn(true);
+        $this->paidInFull = false;
         $order = $this->createOrderMock('tradeaze_CAR_TODAY1400', Order::STATE_PENDING_PAYMENT);
 
+        // AWAITINGPAYMENT, not FAILEDSYNC0 - no delivery has been attempted, so this must stay
+        // distinguishable in the sales grid from an order whose delivery call actually failed
         $order->expects($this->once())
             ->method('setTradeazeOrderStatus')
-            ->with('FAILEDSYNC0');
+            ->with('AWAITINGPAYMENT');
 
         $order->expects($this->once())
             ->method('addCommentToStatusHistory')
@@ -145,11 +162,30 @@ class OrderPlaceAfterTest extends TestCase
     public function testDefersPaymentReviewOrderToRetryCron(): void
     {
         $this->config->method('isEnabled')->willReturn(true);
+        $this->paidInFull = false;
         $order = $this->createOrderMock('tradeaze_CAR_TODAY1400', Order::STATE_PAYMENT_REVIEW);
 
         $order->expects($this->once())
             ->method('setTradeazeOrderStatus')
-            ->with('FAILEDSYNC0');
+            ->with('AWAITINGPAYMENT');
+
+        $this->createDelivery->expects($this->never())->method('execute');
+        $this->orderRepository->expects($this->never())->method('save');
+
+        $this->observer->execute($this->createObserverEvent($order));
+    }
+
+    public function testDefersAuthorisedButUncapturedOrderDespiteProcessingState(): void
+    {
+        $this->config->method('isEnabled')->willReturn(true);
+        // Buy-now-pay-later and authorize-only gateways reach "processing" with nothing
+        // captured, which is exactly the case a state-based gate would wrongly let through
+        $this->paidInFull = false;
+        $order = $this->createOrderMock('tradeaze_CAR_TODAY1400', Order::STATE_PROCESSING);
+
+        $order->expects($this->once())
+            ->method('setTradeazeOrderStatus')
+            ->with('AWAITINGPAYMENT');
 
         $this->createDelivery->expects($this->never())->method('execute');
         $this->orderRepository->expects($this->never())->method('save');
@@ -169,10 +205,12 @@ class OrderPlaceAfterTest extends TestCase
         $this->observer->execute($this->createObserverEvent($order));
     }
 
-    public function testCreatesDeliveryForNewOrder(): void
+    public function testCreatesDeliveryWhenCapturedAtPlacement(): void
     {
         $this->config->method('isEnabled')->willReturn(true);
-        $order = $this->createOrderMock('tradeaze_CAR_TODAY1400', Order::STATE_NEW);
+        // A capture-on-order gateway has already run Invoice::pay() by the time Order::place()
+        // dispatches this event, so the money is in and the delivery goes inline
+        $order = $this->createOrderMock('tradeaze_CAR_TODAY1400', Order::STATE_PROCESSING);
 
         $this->createDelivery->expects($this->once())
             ->method('execute')
@@ -185,10 +223,12 @@ class OrderPlaceAfterTest extends TestCase
         $this->observer->execute($this->createObserverEvent($order));
     }
 
-    public function testCreatesDeliveryForOrderAlreadyProcessing(): void
+    public function testCreatesDeliveryForPaidOrderRegardlessOfState(): void
     {
         $this->config->method('isEnabled')->willReturn(true);
-        $order = $this->createOrderMock('tradeaze_CAR_TODAY1400', Order::STATE_PROCESSING);
+        // The gate is the money, not the state - a paid order still sitting in "new" (a
+        // provider that picks its own placement state) must still be sent
+        $order = $this->createOrderMock('tradeaze_CAR_TODAY1400', Order::STATE_NEW);
 
         $this->createDelivery->expects($this->once())
             ->method('execute')
@@ -204,7 +244,7 @@ class OrderPlaceAfterTest extends TestCase
     public function testFlagsFailedApiCallForRetry(): void
     {
         $this->config->method('isEnabled')->willReturn(true);
-        $order = $this->createOrderMock('tradeaze_CAR_TODAY1400', Order::STATE_NEW);
+        $order = $this->createOrderMock('tradeaze_CAR_TODAY1400', Order::STATE_PROCESSING);
 
         $this->createDelivery->method('execute')
             ->willThrowException(new Exception('API timeout'));

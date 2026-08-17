@@ -18,6 +18,7 @@ use Tradeaze\ApiIntegration\Api\TradeazeEndpoints\Delivery\CreateDeliveryInterfa
 use Tradeaze\ApiIntegration\Helper\Config;
 use Tradeaze\ApiIntegration\Model\TradeazeEndpoints\Delivery\DeliveryStrategyResolver;
 use Tradeaze\ApiIntegration\Service\InventorySourceValidator;
+use Tradeaze\ApiIntegration\Service\OrderPaymentStatus;
 use Tradeaze\ApiIntegration\Service\Tradeaze;
 
 class OrderPlaceAfter implements ObserverInterface
@@ -32,6 +33,7 @@ class OrderPlaceAfter implements ObserverInterface
      * @param LoggerInterface $logger
      * @param InventorySourceValidator $inventorySourceValidator
      * @param AddressInterfaceFactory $addressFactory
+     * @param OrderPaymentStatus $orderPaymentStatus
      */
     public function __construct(
         protected readonly DeliveryStrategyResolver $deliveryStrategyResolver,
@@ -40,6 +42,7 @@ class OrderPlaceAfter implements ObserverInterface
         protected readonly LoggerInterface $logger,
         protected readonly InventorySourceValidator $inventorySourceValidator,
         protected readonly AddressInterfaceFactory $addressFactory,
+        protected readonly OrderPaymentStatus $orderPaymentStatus,
     ) {
         $this->createDelivery = $this->deliveryStrategyResolver->resolve();
     }
@@ -47,8 +50,11 @@ class OrderPlaceAfter implements ObserverInterface
     /**
      * Creates a Tradeaze delivery after order placement
      *
-     * Orders whose payment has not been confirmed yet are flagged for the retry cron
-     * instead, and failures are flagged for retry too.
+     * Only orders whose payment has already been captured in full are sent here - which
+     * covers capture-on-order gateways, because Payment::place() runs the capture (and so
+     * Invoice::pay()) before Order::place() dispatches this event. Everything else is parked
+     * for the retry cron to pick up once the money lands, and failures are flagged for
+     * retry too.
      *
      * @param Observer $observer
      * @return void
@@ -72,37 +78,29 @@ class OrderPlaceAfter implements ObserverInterface
 
         // Terminal at placement - this order will never ship, so there is nothing to defer
         if (in_array($state, [Order::STATE_CANCELED, Order::STATE_CLOSED, Order::STATE_COMPLETE], true)) {
-            $this->logger->warning(__(
-                'Tradeaze delivery not possible: order %1 state is "%2".',
-                $order->getIncrementId(),
-                $state
-            ));
             return;
         }
 
-        // Payment is not confirmed yet: Adyen and other providers place the order into
-        // pending_payment, or payment_review for manual fraud review, and only promote it
-        // later via an async webhook. Flag it so the retry cron creates the delivery once
-        // the order reaches a syncable state.
+        // Nothing is sent to Tradeaze until the order has been paid for in full. Whether that
+        // is already true at placement depends on the provider: a capture-on-order gateway has
+        // captured by now, while an authorize-only or redirect/offsite provider has not (and may
+        // sit in any state of its own choosing - see OrderPaymentStatus for why the state is not
+        // a usable signal). Park it so the retry cron creates the delivery once the money lands.
         //
         // Deliberately no orderRepository->save() here - Order::place() dispatches this
         // event as its last statement and the placement flow saves immediately afterwards,
         // which persists both the data and the status history comment.
-        if (!in_array($state, [Order::STATE_NEW, Order::STATE_PROCESSING], true)) {
+        if (!$this->orderPaymentStatus->isPaidInFull($order)) {
             $this->applyResolvedSourceCode($order);
-            $order->setTradeazeOrderStatus(Tradeaze::ORDER_STATUS_PATTERN_TO_RETRY . '0');
-            $order->addCommentToStatusHistory(
-                __(
-                    'Tradeaze delivery deferred: order state is "%1", awaiting payment confirmation. '
-                    . 'The delivery will be created by the Tradeaze retry cron once payment is confirmed.',
-                    $state
-                )
-            );
-            $this->logger->warning(__(
-                'Tradeaze delivery deferred: order %1 state is "%2", awaiting payment confirmation. '
-                . 'The delivery will be created by the Tradeaze retry cron once payment is confirmed.',
+            $order->setTradeazeOrderStatus(Tradeaze::AWAITING_PAYMENT_STATUS);
+            $order->addCommentToStatusHistory(__(
+                'Tradeaze delivery deferred: order %1 has not been paid in full yet '
+                . '(state "%2", %3 of %4 captured). The delivery will be created by the '
+                . 'Tradeaze retry cron once the payment is captured.',
                 $order->getIncrementId(),
-                $state
+                $state,
+                (float) $order->getBaseTotalPaid(),
+                (float) $order->getBaseGrandTotal()
             ));
 
             return;

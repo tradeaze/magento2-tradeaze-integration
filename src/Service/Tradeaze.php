@@ -31,6 +31,15 @@ class Tradeaze
     public const FAILED_STATUS = 'FAILED';
 
     /**
+     * Parked until the payment is captured - no delivery has been attempted yet
+     *
+     * Kept distinct from ORDER_STATUS_PATTERN_TO_RETRY so that an order still waiting for its
+     * payment provider is not indistinguishable, in the sales grid, from one whose delivery
+     * call actually failed. Unpaid and abandoned checkouts sit in this status indefinitely.
+     */
+    public const AWAITING_PAYMENT_STATUS = 'AWAITINGPAYMENT';
+
+    /**
      * @param Config $config
      * @param TradeazeSizeCategory $sizeCategoryMapping
      * @param TradeazeWeightCategory $weightCategoryMapping

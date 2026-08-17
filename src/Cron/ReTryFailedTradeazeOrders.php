@@ -19,10 +19,18 @@ use Psr\Log\LoggerInterface;
 use Tradeaze\ApiIntegration\Api\TradeazeEndpoints\Delivery\CreateDeliveryInterface;
 use Tradeaze\ApiIntegration\Helper\Config;
 use Tradeaze\ApiIntegration\Model\TradeazeEndpoints\Delivery\DeliveryStrategyResolver;
+use Tradeaze\ApiIntegration\Service\OrderPaymentStatus;
 use Tradeaze\ApiIntegration\Service\Tradeaze;
 
 class ReTryFailedTradeazeOrders
 {
+    /**
+     * How many candidate orders to examine per run
+     *
+     * Candidates, not deliveries: authorize-only and pay-later payments sit in "processing"
+     * unpaid, so the page needs headroom or a run of them stalls the orders behind.
+     */
+    private const ORDERS_PER_RUN = 100;
 
     /** @var CreateDeliveryInterface */
     protected CreateDeliveryInterface $createDelivery;
@@ -34,6 +42,7 @@ class ReTryFailedTradeazeOrders
      * @param OrderRepository $orderRepository
      * @param LoggerInterface $logger
      * @param SourceRepositoryInterface $sourceRepository
+     * @param OrderPaymentStatus $orderPaymentStatus
      */
     public function __construct(
         protected readonly DeliveryStrategyResolver $deliveryStrategyResolver,
@@ -41,13 +50,15 @@ class ReTryFailedTradeazeOrders
         protected readonly CollectionFactory $orderCollectionFactory,
         protected readonly OrderRepository $orderRepository,
         protected readonly LoggerInterface $logger,
-        protected readonly SourceRepositoryInterface $sourceRepository
+        protected readonly SourceRepositoryInterface $sourceRepository,
+        protected readonly OrderPaymentStatus $orderPaymentStatus
     ) {
         $this->createDelivery = $this->deliveryStrategyResolver->resolve();
     }
 
     /**
-     * Retries failed Tradeaze delivery creation (up to 4 attempts before marking FAILED)
+     * Creates deliveries for orders whose payment has landed since placement, and retries
+     * failed delivery creation (up to 4 attempts before marking FAILED)
      *
      * @return void
      * @throws AlreadyExistsException
@@ -58,23 +69,39 @@ class ReTryFailedTradeazeOrders
     {
         $collection = $this->orderCollectionFactory->create()
             ->addAttributeToSelect('*')
+            // Orders parked awaiting payment, plus ones whose delivery call has failed before
             ->addFieldToFilter(
                 'tradeaze_order_status',
-                ['like' => Tradeaze::ORDER_STATUS_PATTERN_TO_RETRY . '%']
+                [
+                    ['eq' => Tradeaze::AWAITING_PAYMENT_STATUS],
+                    ['like' => Tradeaze::ORDER_STATUS_PATTERN_TO_RETRY . '%'],
+                ]
             )
             // Never re-send an order that already has a delivery
             ->addFieldToFilter('tradeaze_order_id', ['null' => true])
-            // Only orders whose payment has landed. Orders still in pending_payment or
-            // payment_review are parked here until their payment webhook promotes them,
-            // so they cannot burn their retry attempts while waiting.
+            // Coarse, index-backed narrowing (SALES_ORDER_STATE); the real paid-in-full test runs
+            // per order below. Excluding unpaid states keeps abandoned checkouts, which stay parked
+            // indefinitely, from filling the page ahead of orders that are ready. "complete" is
+            // eligible on purpose - an order invoiced and shipped between runs still needs sending.
             ->addFieldToFilter(
                 'state',
-                ['in' => [Order::STATE_NEW, Order::STATE_PROCESSING]]
+                ['in' => [Order::STATE_PROCESSING, Order::STATE_COMPLETE]]
             )
-            ->setPageSize(20);
+            ->setPageSize(self::ORDERS_PER_RUN)
+            // Oldest first, so a spike cannot leave older orders permanently at the back
+            ->setOrder('entity_id', 'ASC');
 
         /** @var Order $order */
         foreach ($collection->getItems() as $order) {
+            // The real gate - "processing" only means a payment action ran, not that money
+            // arrived (authorize-only, pay-later, part-invoiced). See OrderPaymentStatus.
+            if (!$this->orderPaymentStatus->isPaidInFull($order)) {
+                $this->logger->warning(
+                    "Tradeaze cron: Order '{$order->getIncrementId()}' being skipped because order is not fully paid"
+                );
+                continue;
+            }
+
             try {
                 $params = [
                     'request' => $order,
@@ -102,13 +129,7 @@ class ReTryFailedTradeazeOrders
                 $this->orderRepository->save($order);
             } catch (Exception $e) {
                 $this->logger->error($e->getMessage());
-                $currentStatus = $order->getTradeazeOrderStatus();
-                $attemptNo = (int) str_replace(
-                    Tradeaze::ORDER_STATUS_PATTERN_TO_RETRY,
-                    '',
-                    $currentStatus
-                );
-                $attemptNo++;
+                $attemptNo = $this->getAttemptNumber($order->getTradeazeOrderStatus()) + 1;
                 $newStatus = $attemptNo <= Tradeaze::MAX_NUMBER_OF_REATTEMPTS
                     ? Tradeaze::ORDER_STATUS_PATTERN_TO_RETRY . $attemptNo
                     : Tradeaze::FAILED_STATUS;
@@ -119,5 +140,23 @@ class ReTryFailedTradeazeOrders
                 $this->orderRepository->save($order);
             }
         }
+    }
+
+    /**
+     * How many delivery attempts this order has already had
+     *
+     * Anything that is not a retry status - an order parked awaiting payment, for instance -
+     * has had no attempt yet, so the next failure is attempt #1.
+     *
+     * @param string|null $status
+     * @return int
+     */
+    private function getAttemptNumber(?string $status): int
+    {
+        if ($status === null || !str_starts_with($status, Tradeaze::ORDER_STATUS_PATTERN_TO_RETRY)) {
+            return 0;
+        }
+
+        return (int) substr($status, strlen(Tradeaze::ORDER_STATUS_PATTERN_TO_RETRY));
     }
 }
