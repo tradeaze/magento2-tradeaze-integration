@@ -45,60 +45,99 @@ class OrderPlaceAfter implements ObserverInterface
     }
 
     /**
-     * Creates a Tradeaze delivery after order placement, or marks it for cron retry on failure
+     * Creates a Tradeaze delivery after order placement
+     *
+     * Orders whose payment has not been confirmed yet are flagged for the retry cron
+     * instead, and failures are flagged for retry too.
      *
      * @param Observer $observer
      * @return void
      */
     public function execute(Observer $observer): void
     {
-        if ($this->tradeazeConfig->isEnabled()) {
+        if (!$this->tradeazeConfig->isEnabled()) {
+            return;
+        }
 
-            /** @var Order $order */
-            $order = $observer->getEvent()->getData('order');
+        /** @var Order $order */
+        $order = $observer->getEvent()->getData('order');
 
-            if (!in_array($order->getStatus(), ['pending', 'processing'])) {
-                return;
-            }
+        // Gate on the shipping method first - only Tradeaze orders may be flagged for the
+        // retry cron. Cast because shipping_method is null on virtual/downloadable orders.
+        if (!str_contains((string) $order->getShippingMethod(), 'tradeaze')) {
+            return;
+        }
 
-            if (!str_contains($order->getShippingMethod(), 'tradeaze')) {
-                return;
-            }
+        $state = (string) $order->getState();
 
-            try {
-                $response = $this->createDelivery->execute(
-                    [
-                        'request' => $order,
-                    ]
-                );
-                $order->setTradeazeOrderId($response['id']);
-                $order->setTradeazeOrderStatus('PENDING');
+        // Terminal at placement - this order will never ship, so there is nothing to defer
+        if (in_array($state, [Order::STATE_CANCELED, Order::STATE_CLOSED, Order::STATE_COMPLETE], true)) {
+            return;
+        }
 
-                // Save the resolved source code for cron retry use
-                $sourceCode = $this->resolveSourceCodeForOrder($order);
-                if ($sourceCode) {
-                    $order->setData('tradeaze_source_code', $sourceCode);
-                }
+        // Payment is not confirmed yet: Adyen and other providers place the order into
+        // pending_payment, or payment_review for manual fraud review, and only promote it
+        // later via an async webhook. Flag it so the retry cron creates the delivery once
+        // the order reaches a syncable state.
+        //
+        // Deliberately no orderRepository->save() here - Order::place() dispatches this
+        // event as its last statement and the placement flow saves immediately afterwards,
+        // which persists both the data and the status history comment.
+        if (!in_array($state, [Order::STATE_NEW, Order::STATE_PROCESSING], true)) {
+            $this->applyResolvedSourceCode($order);
+            $order->setTradeazeOrderStatus(Tradeaze::ORDER_STATUS_PATTERN_TO_RETRY . '0');
+            $order->addCommentToStatusHistory(
+                __(
+                    'Tradeaze delivery deferred: order state is "%1", awaiting payment confirmation. '
+                    . 'The delivery will be created by the Tradeaze retry cron once payment is confirmed.',
+                    $state
+                )
+            );
 
-                $order->addCommentToStatusHistory(
-                    __('Tradeaze delivery created successfully. Order Id %1', $response['id'])
-                );
-                $this->orderRepository->save($order);
-            } catch (Exception $e) {
-                $this->logger->error($e->getMessage());
+            return;
+        }
 
-                // Still save the source code even on failure, for cron retry
-                $sourceCode = $this->resolveSourceCodeForOrder($order);
-                if ($sourceCode) {
-                    $order->setData('tradeaze_source_code', $sourceCode);
-                }
+        try {
+            $response = $this->createDelivery->execute(
+                [
+                    'request' => $order,
+                ]
+            );
+            $order->setTradeazeOrderId($response['id']);
+            $order->setTradeazeOrderStatus('PENDING');
 
-                $order->setTradeazeOrderStatus(Tradeaze::ORDER_STATUS_PATTERN_TO_RETRY . '1');
-                $order->addCommentToStatusHistory(
-                    __('Tradeaze delivery failed. Error was %1', $e->getMessage())
-                );
-                $this->orderRepository->save($order);
-            }
+            // Save the resolved source code for cron retry use
+            $this->applyResolvedSourceCode($order);
+
+            $order->addCommentToStatusHistory(
+                __('Tradeaze delivery created successfully. Order Id %1', $response['id'])
+            );
+            $this->orderRepository->save($order);
+        } catch (Exception $e) {
+            $this->logger->error($e->getMessage());
+
+            // Still save the source code even on failure, for cron retry
+            $this->applyResolvedSourceCode($order);
+
+            $order->setTradeazeOrderStatus(Tradeaze::ORDER_STATUS_PATTERN_TO_RETRY . '1');
+            $order->addCommentToStatusHistory(
+                __('Tradeaze delivery failed. Error was %1', $e->getMessage())
+            );
+            $this->orderRepository->save($order);
+        }
+    }
+
+    /**
+     * Resolve the source code for the order and store it for later cron retry use
+     *
+     * @param Order $order
+     * @return void
+     */
+    private function applyResolvedSourceCode(Order $order): void
+    {
+        $sourceCode = $this->resolveSourceCodeForOrder($order);
+        if ($sourceCode) {
+            $order->setData('tradeaze_source_code', $sourceCode);
         }
     }
 

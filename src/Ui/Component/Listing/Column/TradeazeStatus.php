@@ -25,7 +25,7 @@ class TradeazeStatus implements OptionSourceInterface
             ['value' => 'CANCELLED', 'label' => __('CANCELLED')],
         ];
 
-        $failedSyncIndex = 1;
+        $failedSyncIndex = 0;
         while ($failedSyncIndex <= Tradeaze::MAX_NUMBER_OF_REATTEMPTS) {
             $failedSyncStatus = Tradeaze::ORDER_STATUS_PATTERN_TO_RETRY . $failedSyncIndex;
             $statuses[] = ['value' => $failedSyncStatus, 'label' => __($failedSyncStatus)];

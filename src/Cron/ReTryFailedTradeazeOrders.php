@@ -62,6 +62,15 @@ class ReTryFailedTradeazeOrders
                 'tradeaze_order_status',
                 ['like' => Tradeaze::ORDER_STATUS_PATTERN_TO_RETRY . '%']
             )
+            // Never re-send an order that already has a delivery
+            ->addFieldToFilter('tradeaze_order_id', ['null' => true])
+            // Only orders whose payment has landed. Orders still in pending_payment or
+            // payment_review are parked here until their payment webhook promotes them,
+            // so they cannot burn their retry attempts while waiting.
+            ->addFieldToFilter(
+                'state',
+                ['in' => [Order::STATE_NEW, Order::STATE_PROCESSING]]
+            )
             ->setPageSize(20);
 
         /** @var Order $order */

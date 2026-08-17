@@ -35,7 +35,8 @@ class TradeazeStatusTest extends TestCase
         $options = $this->statusSource->toOptionArray();
         $values = array_column($options, 'value');
 
-        for ($i = 1; $i <= Tradeaze::MAX_NUMBER_OF_REATTEMPTS; $i++) {
+        // FAILEDSYNC0 is set by the order place observer when payment is not yet confirmed
+        for ($i = 0; $i <= Tradeaze::MAX_NUMBER_OF_REATTEMPTS; $i++) {
             $this->assertContains(
                 'FAILEDSYNC' . $i,
                 $values,
@@ -48,8 +49,8 @@ class TradeazeStatusTest extends TestCase
     {
         $options = $this->statusSource->toOptionArray();
 
-        // 5 standard statuses + MAX_NUMBER_OF_REATTEMPTS FAILEDSYNC + 1 FAILED
-        $expectedCount = 5 + Tradeaze::MAX_NUMBER_OF_REATTEMPTS + 1;
+        // 5 standard statuses + FAILEDSYNC0..MAX_NUMBER_OF_REATTEMPTS + 1 FAILED
+        $expectedCount = 5 + (Tradeaze::MAX_NUMBER_OF_REATTEMPTS + 1) + 1;
         $this->assertCount($expectedCount, $options);
     }
 

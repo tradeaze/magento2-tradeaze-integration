@@ -71,16 +71,60 @@ class ReTryFailedTradeazeOrdersTest extends TestCase
         return $order;
     }
 
-    private function setupCollection(array $orders): void
+    /**
+     * @param array $orders
+     * @param array|null $filters Populated with every addFieldToFilter() call, keyed by field
+     */
+    private function setupCollection(array $orders, ?array &$filters = null): void
     {
         $collection = $this->getMockBuilder(Collection::class)
             ->disableOriginalConstructor()
             ->getMock();
         $collection->method('addAttributeToSelect')->willReturnSelf();
-        $collection->method('addFieldToFilter')->willReturnSelf();
+        $collection->method('addFieldToFilter')
+            ->willReturnCallback(function ($field, $condition) use (&$filters, $collection) {
+                if (is_array($filters)) {
+                    $filters[$field] = $condition;
+                }
+                return $collection;
+            });
         $collection->method('setPageSize')->willReturnSelf();
         $collection->method('getItems')->willReturn($orders);
         $this->orderCollectionFactory->method('create')->willReturn($collection);
+    }
+
+    public function testCollectionOnlySelectsUnsentRetryFlaggedOrdersInSyncableStates(): void
+    {
+        $filters = [];
+        $this->setupCollection([], $filters);
+
+        $this->cron->execute();
+
+        $this->assertSame(['like' => 'FAILEDSYNC%'], $filters['tradeaze_order_status']);
+        $this->assertSame(['null' => true], $filters['tradeaze_order_id']);
+        $this->assertSame(['in' => ['new', 'processing']], $filters['state']);
+    }
+
+    public function testFailedRetryFromSync0IncrementsToSync1(): void
+    {
+        $order = $this->createOrderMock('FAILEDSYNC0');
+        $this->setupCollection([$order]);
+
+        $this->createDelivery->method('execute')
+            ->willThrowException(new Exception('API timeout'));
+
+        $order->expects($this->once())
+            ->method('setTradeazeOrderStatus')
+            ->with('FAILEDSYNC1');
+
+        // A deferred order has had no API call yet, so this really is the first attempt
+        $order->expects($this->once())
+            ->method('addCommentToStatusHistory')
+            ->with($this->callback(function ($comment) {
+                return str_contains((string) $comment, '#1');
+            }));
+
+        $this->cron->execute();
     }
 
     public function testSuccessfulRetrySetsPendingStatus(): void
