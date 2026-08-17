@@ -72,6 +72,11 @@ class OrderPlaceAfter implements ObserverInterface
 
         // Terminal at placement - this order will never ship, so there is nothing to defer
         if (in_array($state, [Order::STATE_CANCELED, Order::STATE_CLOSED, Order::STATE_COMPLETE], true)) {
+            $this->logger->warning(__(
+                'Tradeaze delivery not possible: order %1 state is "%2".',
+                $order->getIncrementId(),
+                $state
+            ));
             return;
         }
 
