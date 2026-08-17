@@ -93,6 +93,12 @@ class OrderPlaceAfter implements ObserverInterface
                     $state
                 )
             );
+            $this->logger->warning(__(
+                'Tradeaze delivery deferred: order %1 state is "%2", awaiting payment confirmation. '
+                . 'The delivery will be created by the Tradeaze retry cron once payment is confirmed.',
+                $order->getIncrementId(),
+                $state
+            ));
 
             return;
         }
