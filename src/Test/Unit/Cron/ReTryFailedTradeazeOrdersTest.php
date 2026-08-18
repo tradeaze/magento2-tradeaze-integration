@@ -19,7 +19,7 @@ use Tradeaze\ApiIntegration\Api\TradeazeEndpoints\Delivery\CreateDeliveryInterfa
 use Tradeaze\ApiIntegration\Cron\ReTryFailedTradeazeOrders;
 use Tradeaze\ApiIntegration\Helper\Config;
 use Tradeaze\ApiIntegration\Model\TradeazeEndpoints\Delivery\DeliveryStrategyResolver;
-use Tradeaze\ApiIntegration\Service\Tradeaze;
+use Tradeaze\ApiIntegration\Service\OrderPaymentStatus;
 
 class ReTryFailedTradeazeOrdersTest extends TestCase
 {
@@ -29,6 +29,14 @@ class ReTryFailedTradeazeOrdersTest extends TestCase
     private LoggerInterface&MockObject $logger;
     private SourceRepositoryInterface&MockObject $sourceRepository;
     private CreateDeliveryInterface&MockObject $createDelivery;
+
+    /**
+     * What OrderPaymentStatus::isPaidInFull() reports for this test
+     *
+     * Read through a callback rather than a fixed willReturn() so an individual test can flip
+     * it without having to re-stub a mock that setUp() has already configured.
+     */
+    private bool $paidInFull = true;
 
     protected function setUp(): void
     {
@@ -43,13 +51,18 @@ class ReTryFailedTradeazeOrdersTest extends TestCase
         $this->createDelivery = $this->createMock(CreateDeliveryInterface::class);
         $deliveryStrategyResolver->method('resolve')->willReturn($this->createDelivery);
 
+        $orderPaymentStatus = $this->createMock(OrderPaymentStatus::class);
+        $orderPaymentStatus->method('isPaidInFull')
+            ->willReturnCallback(fn() => $this->paidInFull);
+
         $this->cron = new ReTryFailedTradeazeOrders(
             $deliveryStrategyResolver,
             $this->createMock(Config::class),
             $this->orderCollectionFactory,
             $this->orderRepository,
             $this->logger,
-            $this->sourceRepository
+            $this->sourceRepository,
+            $orderPaymentStatus
         );
     }
 
@@ -71,16 +84,148 @@ class ReTryFailedTradeazeOrdersTest extends TestCase
         return $order;
     }
 
-    private function setupCollection(array $orders): void
+    /**
+     * @param array $orders
+     * @param array|null $filters Populated with every addFieldToFilter() call, keyed by field
+     * @return Collection&MockObject
+     */
+    private function setupCollection(array $orders, ?array &$filters = null): Collection&MockObject
     {
         $collection = $this->getMockBuilder(Collection::class)
             ->disableOriginalConstructor()
             ->getMock();
         $collection->method('addAttributeToSelect')->willReturnSelf();
-        $collection->method('addFieldToFilter')->willReturnSelf();
+        $collection->method('addFieldToFilter')
+            ->willReturnCallback(function ($field, $condition) use (&$filters, $collection) {
+                if (is_array($filters)) {
+                    $filters[$field] = $condition;
+                }
+                return $collection;
+            });
         $collection->method('setPageSize')->willReturnSelf();
+        // The query chain ends on setOrder(), so it has to hand the collection back
+        $collection->method('setOrder')->willReturnSelf();
         $collection->method('getItems')->willReturn($orders);
         $this->orderCollectionFactory->method('create')->willReturn($collection);
+
+        return $collection;
+    }
+
+    public function testCollectionOnlySelectsUnsentOrdersAwaitingPaymentOrRetry(): void
+    {
+        $filters = [];
+        $this->setupCollection([], $filters);
+
+        $this->cron->execute();
+
+        // OR'd, so orders parked at placement and ones whose delivery call failed both qualify
+        $this->assertSame(
+            [
+                ['eq' => 'AWAITINGPAYMENT'],
+                ['like' => 'FAILEDSYNC%'],
+            ],
+            $filters['tradeaze_order_status']
+        );
+        $this->assertSame(['null' => true], $filters['tradeaze_order_id']);
+
+        // Coarse pre-filter: unpaid states are excluded in SQL so they cannot fill the page,
+        // and "complete" stays eligible for orders invoiced and shipped between runs
+        $this->assertSame(['in' => ['processing', 'complete']], $filters['state']);
+    }
+
+    public function testCollectionTakesOldestFirstWithHeadroom(): void
+    {
+        $collection = $this->setupCollection([]);
+
+        $collection->expects($this->once())
+            ->method('setOrder')
+            ->with('entity_id', 'ASC');
+
+        // Candidates, not deliveries - unpaid authorisations sit in "processing" and are
+        // discarded per order, so the page has to be larger than the expected work
+        $collection->expects($this->once())
+            ->method('setPageSize')
+            ->with($this->greaterThan(20));
+
+        $this->cron->execute();
+    }
+
+    public function testOrderNotPaidInFullIsSkipped(): void
+    {
+        $this->paidInFull = false;
+
+        $order = $this->createOrderMock('AWAITINGPAYMENT');
+        $this->setupCollection([$order]);
+
+        // An authorised-but-uncaptured order reaches "processing", so it survives the SQL
+        // filter - it must not be sent, and must not burn a retry attempt either
+        $this->createDelivery->expects($this->never())->method('execute');
+        $this->orderRepository->expects($this->never())->method('save');
+        $order->expects($this->never())->method('setTradeazeOrderStatus');
+
+        $this->cron->execute();
+    }
+
+    public function testFirstFailureFromAwaitingPaymentIsAttemptOne(): void
+    {
+        $order = $this->createOrderMock('AWAITINGPAYMENT');
+        $this->setupCollection([$order]);
+
+        $this->createDelivery->method('execute')
+            ->willThrowException(new Exception('API timeout'));
+
+        // AWAITINGPAYMENT is not a retry status, so no attempt has been made yet
+        $order->expects($this->once())
+            ->method('setTradeazeOrderStatus')
+            ->with('FAILEDSYNC1');
+
+        $order->expects($this->once())
+            ->method('addCommentToStatusHistory')
+            ->with($this->callback(fn($comment) => str_contains((string) $comment, '#1')));
+
+        $this->cron->execute();
+    }
+
+    public function testPaidOrderParkedAtPlacementIsSentWithoutHavingFailedFirst(): void
+    {
+        $order = $this->createOrderMock('AWAITINGPAYMENT');
+        $this->setupCollection([$order]);
+
+        $this->createDelivery->expects($this->once())
+            ->method('execute')
+            ->willReturn(['id' => 'trz-555']);
+
+        $order->expects($this->once())
+            ->method('setTradeazeOrderId')
+            ->with('trz-555');
+
+        $order->expects($this->once())
+            ->method('setTradeazeOrderStatus')
+            ->with('PENDING');
+
+        $this->cron->execute();
+    }
+
+    public function testFailedRetryFromSync0IncrementsToSync1(): void
+    {
+        $order = $this->createOrderMock('FAILEDSYNC0');
+        $this->setupCollection([$order]);
+
+        $this->createDelivery->method('execute')
+            ->willThrowException(new Exception('API timeout'));
+
+        $order->expects($this->once())
+            ->method('setTradeazeOrderStatus')
+            ->with('FAILEDSYNC1');
+
+        // A deferred order has had no API call yet, so this really is the first attempt
+        $order->expects($this->once())
+            ->method('addCommentToStatusHistory')
+            ->with($this->callback(function ($comment) {
+                return str_contains((string) $comment, '#1');
+            }));
+
+        $this->cron->execute();
     }
 
     public function testSuccessfulRetrySetsPendingStatus(): void

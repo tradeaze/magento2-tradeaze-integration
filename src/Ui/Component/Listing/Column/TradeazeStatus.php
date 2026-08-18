@@ -18,6 +18,10 @@ class TradeazeStatus implements OptionSourceInterface
     public function toOptionArray(): array
     {
         $statuses = [
+            [
+                'value' => Tradeaze::AWAITING_PAYMENT_STATUS,
+                'label' => __('AWAITING PAYMENT'),
+            ],
             ['value' => 'PENDING', 'label' => __('PENDING')],
             ['value' => 'CONFIRMED', 'label' => __('CONFIRMED')],
             ['value' => 'DELIVERED', 'label' => __('DELIVERED')],
@@ -25,7 +29,7 @@ class TradeazeStatus implements OptionSourceInterface
             ['value' => 'CANCELLED', 'label' => __('CANCELLED')],
         ];
 
-        $failedSyncIndex = 1;
+        $failedSyncIndex = 0;
         while ($failedSyncIndex <= Tradeaze::MAX_NUMBER_OF_REATTEMPTS) {
             $failedSyncStatus = Tradeaze::ORDER_STATUS_PATTERN_TO_RETRY . $failedSyncIndex;
             $statuses[] = ['value' => $failedSyncStatus, 'label' => __($failedSyncStatus)];
