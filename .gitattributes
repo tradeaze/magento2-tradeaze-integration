@@ -1,0 +1,12 @@
+# Keep development-only files out of the Composer dist archive, so a
+# `composer require` on a merchant store does not pull down the test suite
+# or the repository tooling.
+/.github            export-ignore
+/.gitattributes     export-ignore
+/phpcs.xml          export-ignore
+/src/Test           export-ignore
+
+# Normalise line endings so the archive is consistent across platforms
+* text=auto eol=lf
+*.png binary
+*.svg text eol=lf
