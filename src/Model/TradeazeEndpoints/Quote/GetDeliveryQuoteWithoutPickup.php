@@ -77,15 +77,12 @@ class GetDeliveryQuoteWithoutPickup extends ClientAbstract implements GetDeliver
 
                     // e.g. "2026-02-07T08:04:00.000Z"
                     $windowStart = $this->timezone->date($methodData['windowStart']);
-                    $dataSuffix =
-                        $windowStart->format('Y-m-d') === $this->timezone->date()->format('Y-m-d')
-                        ? '_TODAY'
-                        : '_TOMORROW';
 
-                    // Add 10 minutes to avoid rejections and get HHMM
-                    $timePart = $windowStart->modify('+10 minutes')->format('Hi');
-
-                    $dataSuffix .= $timePart;
+                    /*
+                     * Store-local; CreateDraftOrder converts it to UTC. Padded 10 minutes so
+                     * the API does not reject a start time that has already passed.
+                     */
+                    $dataSuffix = '_' . $windowStart->modify('+10 minutes')->format('YmdHi');
 
                     $methodPrice = $methodData['deliveryPrice']['amount'] + $methodData['serviceCharge']['amount'];
                     $methods[] = [

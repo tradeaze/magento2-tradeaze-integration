@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Tradeaze\ApiIntegration\Model\TradeazeEndpoints\Delivery;
 
+use DateTime;
 use DateTimeZone;
 use Exception;
 use Magento\Framework\Exception\LocalizedException;
@@ -30,36 +31,9 @@ class CreateDraftOrder extends ClientAbstract implements CreateDeliveryInterface
         $requestObject = $this->params['request'];
         $shippingAddress = $requestObject->getShippingAddress();
 
-        $method = $requestObject->getShippingMethod(); // e.g. "tradeaze_CAR_EVENING_TOMORROW0814"
+        $method = $requestObject->getShippingMethod(); // e.g. "tradeaze_CAR_EVENING_202602070814"
 
-        $matchResult = preg_match(
-            '/^tradeaze_(.+)_(TODAY|TOMORROW)(\d{2})(\d{2})$/',
-            $method,
-            $methodData,
-        );
-
-        if ($matchResult !== 1) {
-            throw new ValidatorException(
-                __('Invalid Tradeaze shipping method format: %1', $method),
-            );
-        }
-
-        $deliveryOptionCode = $methodData[1]; // CAR_EVENING
-        $dayFlag = $methodData[2];            // TODAY / TOMORROW
-        $hour = (int) $methodData[3];
-        $minute = (int) $methodData[4];
-
-        $date = $this->timezone->date();
-
-        if ($dayFlag === 'TOMORROW') {
-            try {
-                $date->modify('+1 day');
-            } catch (Exception $e) {
-                $this->logger->error($e->getMessage());
-            }
-        }
-
-        $date->setTime($hour, $minute, 0);
+        [$deliveryOptionCode, $date] = $this->parseShippingMethod($method);
 
         /**
          * An ISO string date of the time the delivery is scheduled to start.
@@ -133,6 +107,54 @@ class CreateDraftOrder extends ClientAbstract implements CreateDeliveryInterface
         }
 
         return $request;
+    }
+
+    /**
+     * Resolve the delivery option and its absolute start date from the stored shipping method
+     *
+     * Accepts the current absolute format and, for orders not yet sent, the deprecated
+     * relative one.
+     *
+     * @param string $method
+     * @return array{0: string, 1: DateTime}
+     * @throws ValidatorException
+     */
+    private function parseShippingMethod(string $method): array
+    {
+        if (preg_match('/^tradeaze_(.+)_(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})$/', $method, $methodData) === 1) {
+            $date = $this->timezone->date();
+            $date->setDate((int) $methodData[2], (int) $methodData[3], (int) $methodData[4]);
+            $date->setTime((int) $methodData[5], (int) $methodData[6], 0);
+
+            return [$methodData[1], $date];
+        }
+
+        /*
+         * Deprecated format - do not extend it, and do not use it as a model for anything new.
+         * Kept only so orders placed before the absolute format, and not yet sent, still go
+         * through. It cannot express a date, so it resolves against the current date and may
+         * land on the wrong day. Unsent orders can park in AWAITING PAYMENT indefinitely, so
+         * retiring this needs a deliberate cut-off rather than waiting for them to drain.
+         */
+        if (preg_match('/^tradeaze_(.+)_(TODAY|TOMORROW)(\d{2})(\d{2})$/', $method, $methodData) === 1) {
+            $date = $this->timezone->date();
+
+            if ($methodData[2] === 'TOMORROW') {
+                try {
+                    $date->modify('+1 day');
+                } catch (Exception $e) {
+                    $this->logger->error($e->getMessage());
+                }
+            }
+
+            $date->setTime((int) $methodData[3], (int) $methodData[4], 0);
+
+            return [$methodData[1], $date];
+        }
+
+        throw new ValidatorException(
+            __('Invalid Tradeaze shipping method format: %1', $method),
+        );
     }
 
     /**
