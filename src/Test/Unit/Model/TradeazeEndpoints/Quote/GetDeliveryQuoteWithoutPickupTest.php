@@ -56,8 +56,7 @@ class GetDeliveryQuoteWithoutPickupTest extends TestCase
             $this->option('CAR_EVENING', '2026-02-09T08:00:00.000Z', '2026-02-09'),
         ]);
 
-        // 08:00 UTC plus the 10 minute pad, on the Monday
-        $this->assertSame('CAR_EVENING_202602090810', $methods[0]['methodCode']);
+        $this->assertSame('CAR_EVENING_202602090800', $methods[0]['methodCode']);
     }
 
     public function testEncodesASameDayOptionWithTodaysDate(): void
@@ -68,7 +67,7 @@ class GetDeliveryQuoteWithoutPickupTest extends TestCase
             $this->option('CAR_MORNING', '2026-02-06T08:00:00.000Z', '2026-02-06'),
         ]);
 
-        $this->assertSame('CAR_MORNING_202602060810', $methods[0]['methodCode']);
+        $this->assertSame('CAR_MORNING_202602060800', $methods[0]['methodCode']);
     }
 
     /**
@@ -82,11 +81,11 @@ class GetDeliveryQuoteWithoutPickupTest extends TestCase
             $this->option('CAR_MORNING', '2026-06-08T07:00:00.000Z', '2026-06-08'),
         ]);
 
-        $this->assertSame('CAR_MORNING_202606080810', $methods[0]['methodCode']);
+        $this->assertSame('CAR_MORNING_202606080800', $methods[0]['methodCode']);
     }
 
     /**
-     * The code the customer picks must decode back to the window that was quoted
+     * The code the customer picks must decode back to exactly the window that was quoted
      */
     public function testTheEncodedCodeRoundTripsToTheQuotedWindowStart(): void
     {
@@ -103,7 +102,21 @@ class GetDeliveryQuoteWithoutPickupTest extends TestCase
         );
         $quoted = new DateTime($methods[0]['methodWindowStart']);
 
-        $this->assertSame(600, $decoded->getTimestamp() - $quoted->getTimestamp());
+        $this->assertSame($quoted->getTimestamp(), $decoded->getTimestamp());
+    }
+
+    /**
+     * A start time that has passed by the time the order is sent is the API's to resolve
+     */
+    public function testEncodesAnImminentWindowWithoutMovingItForward(): void
+    {
+        $this->setCurrentDate('2026-02-06 07:58:00');
+
+        $methods = $this->parse([
+            $this->option('CAR_ASAP', '2026-02-06T08:00:00.000Z', '2026-02-06'),
+        ]);
+
+        $this->assertSame('CAR_ASAP_202602060800', $methods[0]['methodCode']);
     }
 
     public function testUnavailableOptionsAreDropped(): void

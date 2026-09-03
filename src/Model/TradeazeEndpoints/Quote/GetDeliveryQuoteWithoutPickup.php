@@ -75,14 +75,14 @@ class GetDeliveryQuoteWithoutPickup extends ClientAbstract implements GetDeliver
                     && (($now < $cutOffTime) || $methodData['deliveryDate'] != $now->format('Y-m-d'))
                 ) {
 
-                    // e.g. "2026-02-07T08:04:00.000Z"
+                    // e.g. "2026-02-07T08:00:00.000Z"
                     $windowStart = $this->timezone->date($methodData['windowStart']);
 
                     /*
-                     * Store-local; CreateDraftOrder converts it to UTC. Padded 10 minutes so
-                     * the API does not reject a start time that has already passed.
+                     * Store-local; CreateDraftOrder converts it to UTC. A start time that has
+                     * since passed is the API's to resolve, not ours.
                      */
-                    $dataSuffix = '_' . $windowStart->modify('+10 minutes')->format('YmdHi');
+                    $dataSuffix = '_' . $windowStart->format('YmdHi');
 
                     $methodPrice = $methodData['deliveryPrice']['amount'] + $methodData['serviceCharge']['amount'];
                     $methods[] = [
