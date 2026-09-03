@@ -100,7 +100,7 @@ class OrderPlaceAfterTest extends TestCase
     public function testDoesNothingWhenModuleIsDisabled(): void
     {
         $this->config->method('isEnabled')->willReturn(false);
-        $order = $this->createOrderMock('tradeaze_CAR_TODAY1400');
+        $order = $this->createOrderMock('tradeaze_CAR_202602061400');
 
         $this->createDelivery->expects($this->never())->method('execute');
         $order->expects($this->never())->method('setTradeazeOrderStatus');
@@ -136,7 +136,7 @@ class OrderPlaceAfterTest extends TestCase
     {
         $this->config->method('isEnabled')->willReturn(true);
         $this->paidInFull = false;
-        $order = $this->createOrderMock('tradeaze_CAR_TODAY1400', Order::STATE_PENDING_PAYMENT);
+        $order = $this->createOrderMock('tradeaze_CAR_202602061400', Order::STATE_PENDING_PAYMENT);
 
         // AWAITINGPAYMENT, not FAILEDSYNC0 - no delivery has been attempted, so this must stay
         // distinguishable in the sales grid from an order whose delivery call actually failed
@@ -163,7 +163,7 @@ class OrderPlaceAfterTest extends TestCase
     {
         $this->config->method('isEnabled')->willReturn(true);
         $this->paidInFull = false;
-        $order = $this->createOrderMock('tradeaze_CAR_TODAY1400', Order::STATE_PAYMENT_REVIEW);
+        $order = $this->createOrderMock('tradeaze_CAR_202602061400', Order::STATE_PAYMENT_REVIEW);
 
         $order->expects($this->once())
             ->method('setTradeazeOrderStatus')
@@ -181,7 +181,7 @@ class OrderPlaceAfterTest extends TestCase
         // Buy-now-pay-later and authorize-only gateways reach "processing" with nothing
         // captured, which is exactly the case a state-based gate would wrongly let through
         $this->paidInFull = false;
-        $order = $this->createOrderMock('tradeaze_CAR_TODAY1400', Order::STATE_PROCESSING);
+        $order = $this->createOrderMock('tradeaze_CAR_202602061400', Order::STATE_PROCESSING);
 
         $order->expects($this->once())
             ->method('setTradeazeOrderStatus')
@@ -196,7 +196,7 @@ class OrderPlaceAfterTest extends TestCase
     public function testIgnoresOrderCancelledAtPlacement(): void
     {
         $this->config->method('isEnabled')->willReturn(true);
-        $order = $this->createOrderMock('tradeaze_CAR_TODAY1400', Order::STATE_CANCELED);
+        $order = $this->createOrderMock('tradeaze_CAR_202602061400', Order::STATE_CANCELED);
 
         $this->createDelivery->expects($this->never())->method('execute');
         $order->expects($this->never())->method('setTradeazeOrderStatus');
@@ -210,7 +210,7 @@ class OrderPlaceAfterTest extends TestCase
         $this->config->method('isEnabled')->willReturn(true);
         // A capture-on-order gateway has already run Invoice::pay() by the time Order::place()
         // dispatches this event, so the money is in and the delivery goes inline
-        $order = $this->createOrderMock('tradeaze_CAR_TODAY1400', Order::STATE_PROCESSING);
+        $order = $this->createOrderMock('tradeaze_CAR_202602061400', Order::STATE_PROCESSING);
 
         $this->createDelivery->expects($this->once())
             ->method('execute')
@@ -228,7 +228,7 @@ class OrderPlaceAfterTest extends TestCase
         $this->config->method('isEnabled')->willReturn(true);
         // The gate is the money, not the state - a paid order still sitting in "new" (a
         // provider that picks its own placement state) must still be sent
-        $order = $this->createOrderMock('tradeaze_CAR_TODAY1400', Order::STATE_NEW);
+        $order = $this->createOrderMock('tradeaze_CAR_202602061400', Order::STATE_NEW);
 
         $this->createDelivery->expects($this->once())
             ->method('execute')
@@ -244,7 +244,7 @@ class OrderPlaceAfterTest extends TestCase
     public function testFlagsFailedApiCallForRetry(): void
     {
         $this->config->method('isEnabled')->willReturn(true);
-        $order = $this->createOrderMock('tradeaze_CAR_TODAY1400', Order::STATE_PROCESSING);
+        $order = $this->createOrderMock('tradeaze_CAR_202602061400', Order::STATE_PROCESSING);
 
         $this->createDelivery->method('execute')
             ->willThrowException(new Exception('API timeout'));
