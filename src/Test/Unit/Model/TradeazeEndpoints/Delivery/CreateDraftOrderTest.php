@@ -137,6 +137,30 @@ class CreateDraftOrderTest extends TestCase
         $this->assertSame('2026-02-09T08:10:00Z', $request['startTime']);
     }
 
+    /**
+     * DateTime would roll an impossible date forward onto a real one, silently delivering on a
+     * day that was never quoted
+     *
+     * @dataProvider impossibleDateProvider
+     */
+    public function testThrowsForADateThatCannotExist(string $shippingMethod): void
+    {
+        $this->expectException(ValidatorException::class);
+
+        $this->buildRequestFor($shippingMethod);
+    }
+
+    public static function impossibleDateProvider(): array
+    {
+        return [
+            'month 13' => ['tradeaze_CAR_202613010810'],
+            '31 February' => ['tradeaze_CAR_202602310810'],
+            'hour 99' => ['tradeaze_CAR_202602099900'],
+            'minute 75' => ['tradeaze_CAR_202602090875'],
+            'day 00' => ['tradeaze_CAR_202602000810'],
+        ];
+    }
+
     public function testThrowsForAnUnrecognisedShippingMethodFormat(): void
     {
         $this->setCurrentDate('2026-02-06 18:30:00');

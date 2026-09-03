@@ -122,9 +122,23 @@ class CreateDraftOrder extends ClientAbstract implements CreateDeliveryInterface
     private function parseShippingMethod(string $method): array
     {
         if (preg_match('/^tradeaze_(.+)_(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})$/', $method, $methodData) === 1) {
+            $year = (int) $methodData[2];
+            $month = (int) $methodData[3];
+            $day = (int) $methodData[4];
+            $hour = (int) $methodData[5];
+            $minute = (int) $methodData[6];
+
+            // The pattern only constrains digit count, and DateTime silently rolls an
+            // impossible date forward - "31 February" becomes 3 March - so check it here.
+            if (!checkdate($month, $day, $year) || $hour > 23 || $minute > 59) {
+                throw new ValidatorException(
+                    __('Invalid Tradeaze shipping method date: %1', $method),
+                );
+            }
+
             $date = $this->timezone->date();
-            $date->setDate((int) $methodData[2], (int) $methodData[3], (int) $methodData[4]);
-            $date->setTime((int) $methodData[5], (int) $methodData[6], 0);
+            $date->setDate($year, $month, $day);
+            $date->setTime($hour, $minute, 0);
 
             return [$methodData[1], $date];
         }
