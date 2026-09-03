@@ -14,6 +14,8 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Tradeaze\ApiIntegration\Helper\Config;
 use Tradeaze\ApiIntegration\Model\Cache\Tradeaze as TradeazeCache;
+use Tradeaze\ApiIntegration\Model\Carrier\ShippingMethodCode;
+use Tradeaze\ApiIntegration\Model\Carrier\Tradeaze as TradeazeCarrier;
 use Tradeaze\ApiIntegration\Model\TradeazeEndpoints\Quote\GetDeliveryQuoteWithoutPickup;
 use Tradeaze\ApiIntegration\Service\InventorySourceValidator;
 use Tradeaze\ApiIntegration\Service\Tradeaze as TradeazeService;
@@ -95,11 +97,11 @@ class GetDeliveryQuoteWithoutPickupTest extends TestCase
             $this->option('CAR_EVENING', '2026-02-09T08:00:00.000Z', '2026-02-09'),
         ]);
 
-        preg_match('/_(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})$/', $methods[0]['methodCode'], $m);
-        $decoded = new DateTime(
-            "{$m[1]}-{$m[2]}-{$m[3]} {$m[4]}:{$m[5]}:00",
-            new DateTimeZone(self::STORE_TIMEZONE)
-        );
+        // Decoded by the same class that wrote it, rather than a second copy of the format
+        $decoded = ShippingMethodCode::fromShippingMethod(
+            TradeazeCarrier::CARRIER_CODE . '_' . $methods[0]['methodCode']
+        )->resolveStartDate(new DateTime('now', new DateTimeZone(self::STORE_TIMEZONE)));
+
         $quoted = new DateTime($methods[0]['methodWindowStart']);
 
         $this->assertSame($quoted->getTimestamp(), $decoded->getTimestamp());

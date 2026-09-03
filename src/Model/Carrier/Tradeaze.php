@@ -35,9 +35,14 @@ class Tradeaze extends AbstractCarrier implements
     CarrierInterface
 {
     /**
+     * The carrier prefix Magento joins to the method code to form the stored shipping method
+     */
+    public const CARRIER_CODE = 'tradeaze';
+
+    /**
      * @var string
      */
-    protected $_code = 'tradeaze';
+    protected $_code = self::CARRIER_CODE;
 
     /**
      * @var bool

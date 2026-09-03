@@ -15,6 +15,7 @@ use Magento\Quote\Api\Data\CartInterface;
 use Magento\Quote\Model\Quote\Address as QuoteAddress;
 use Magento\Quote\Model\Quote\Item;
 use Tradeaze\ApiIntegration\Api\TradeazeEndpoints\Quote\GetDeliveryQuoteInterface;
+use Tradeaze\ApiIntegration\Model\Carrier\ShippingMethodCode;
 use Tradeaze\ApiIntegration\Model\TradeazeEndpoints\ClientAbstract;
 
 class GetDeliveryQuoteWithoutPickup extends ClientAbstract implements GetDeliveryQuoteInterface
@@ -82,11 +83,11 @@ class GetDeliveryQuoteWithoutPickup extends ClientAbstract implements GetDeliver
                      * Store-local; CreateDraftOrder converts it to UTC. A start time that has
                      * since passed is the API's to resolve, not ours.
                      */
-                    $dataSuffix = '_' . $windowStart->format('YmdHi');
+                    $methodCode = ShippingMethodCode::forQuotedWindowStart($methodData['id'], $windowStart);
 
                     $methodPrice = $methodData['deliveryPrice']['amount'] + $methodData['serviceCharge']['amount'];
                     $methods[] = [
-                        'methodCode' => $methodData['id'] . $dataSuffix,
+                        'methodCode' => $methodCode->methodCode(),
                         'methodTitle' => $methodData['displayName'],
                         'methodPrice' => $methodPrice,
                         'methodCost' => $methodPrice,
