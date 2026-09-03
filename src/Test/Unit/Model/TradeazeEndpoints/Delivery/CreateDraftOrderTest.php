@@ -161,6 +161,19 @@ class CreateDraftOrderTest extends TestCase
         ];
     }
 
+    /**
+     * The API validates startTime against this pattern, so our output has to match it
+     */
+    public function testStartTimeMatchesThePatternTheApiEnforces(): void
+    {
+        $this->setCurrentDate('2026-02-06 18:30:00');
+
+        $this->assertMatchesRegularExpression(
+            '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/',
+            $this->buildRequestFor('tradeaze_CAR_202602090810')['startTime']
+        );
+    }
+
     public function testThrowsForAnUnrecognisedShippingMethodFormat(): void
     {
         $this->setCurrentDate('2026-02-06 18:30:00');
