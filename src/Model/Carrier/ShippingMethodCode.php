@@ -55,6 +55,14 @@ class ShippingMethodCode
     ) {
     }
 
+    /*
+     * Named constructors, so the two sides of the format ask for it by intent rather than
+     * assembling strings. Magento2.Functions.StaticFunction objects to static methods on the
+     * grounds that plugins cannot intercept them, which is the point here - the encoding is a
+     * fixed contract between the quote and the delivery request, not behaviour to extend.
+     */
+    // phpcs:disable Magento2.Functions.StaticFunction
+
     /**
      * Build the code offered to the customer for a quoted delivery option
      *
@@ -128,6 +136,8 @@ class ShippingMethodCode
         );
     }
 
+    // phpcs:enable Magento2.Functions.StaticFunction
+
     /**
      * The code as Magento stores it against the rate, without the carrier prefix
      *
@@ -152,6 +162,8 @@ class ShippingMethodCode
     }
 
     /**
+     * The Tradeaze delivery option the customer chose
+     *
      * @return string
      */
     public function deliveryOptionId(): string
