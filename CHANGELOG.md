@@ -3,7 +3,7 @@
 All notable changes to this module are recorded here. Versions follow
 [semantic versioning](https://semver.org/).
 
-## [1.1.1] - 2026-09-03
+## [1.1.1] - 2026-09-07
 
 ### Deliveries are booked for the day that was quoted
 
