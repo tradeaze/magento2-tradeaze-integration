@@ -8,7 +8,6 @@ declare(strict_types=1);
 namespace Tradeaze\ApiIntegration\Model\TradeazeEndpoints\Delivery;
 
 use DateTimeZone;
-use Exception;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Validator\Exception as ValidatorException;
 use Magento\InventoryApi\Api\Data\SourceInterface;
@@ -17,6 +16,7 @@ use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Address as OrderAddress;
 use Magento\Sales\Model\Order\Item;
 use Tradeaze\ApiIntegration\Api\TradeazeEndpoints\Delivery\CreateDeliveryInterface;
+use Tradeaze\ApiIntegration\Model\Carrier\ShippingMethodCode;
 use Tradeaze\ApiIntegration\Model\TradeazeEndpoints\ClientAbstract;
 
 class CreateDraftOrder extends ClientAbstract implements CreateDeliveryInterface
@@ -30,36 +30,10 @@ class CreateDraftOrder extends ClientAbstract implements CreateDeliveryInterface
         $requestObject = $this->params['request'];
         $shippingAddress = $requestObject->getShippingAddress();
 
-        $method = $requestObject->getShippingMethod(); // e.g. "tradeaze_CAR_EVENING_TOMORROW0814"
+        $method = $requestObject->getShippingMethod(); // e.g. "tradeaze_CAR_EVENING_202602070814"
 
-        $matchResult = preg_match(
-            '/^tradeaze_(.+)_(TODAY|TOMORROW)(\d{2})(\d{2})$/',
-            $method,
-            $methodData,
-        );
-
-        if ($matchResult !== 1) {
-            throw new ValidatorException(
-                __('Invalid Tradeaze shipping method format: %1', $method),
-            );
-        }
-
-        $deliveryOptionCode = $methodData[1]; // CAR_EVENING
-        $dayFlag = $methodData[2];            // TODAY / TOMORROW
-        $hour = (int) $methodData[3];
-        $minute = (int) $methodData[4];
-
-        $date = $this->timezone->date();
-
-        if ($dayFlag === 'TOMORROW') {
-            try {
-                $date->modify('+1 day');
-            } catch (Exception $e) {
-                $this->logger->error($e->getMessage());
-            }
-        }
-
-        $date->setTime($hour, $minute, 0);
+        $shippingMethodCode = ShippingMethodCode::fromShippingMethod($method);
+        $date = $shippingMethodCode->resolveStartDate($this->timezone->date());
 
         /**
          * An ISO string date of the time the delivery is scheduled to start.
@@ -75,7 +49,7 @@ class CreateDraftOrder extends ClientAbstract implements CreateDeliveryInterface
 
         $request = [
             'externalId' => $requestObject->getIncrementId(),
-            'deliveryOptionId' => $deliveryOptionCode,
+            'deliveryOptionId' => $shippingMethodCode->deliveryOptionId(),
             'tips' => [
                 'amount' => 0,//required
                 'currency' => 'GBP'//required

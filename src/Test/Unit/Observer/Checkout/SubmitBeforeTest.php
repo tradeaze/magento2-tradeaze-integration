@@ -66,12 +66,12 @@ class SubmitBeforeTest extends TestCase
 
     public function testPassesWhenSelectedMethodIsStillAvailable(): void
     {
-        $observer = $this->createObserverWithQuote('tradeaze_CAR_TODAY1400');
+        $observer = $this->createObserverWithQuote('tradeaze_CAR_202602061400');
 
         $this->getDeliveryQuote->method('execute')
             ->willReturn([
-                ['methodCode' => 'CAR_TODAY1400'],
-                ['methodCode' => 'VAN_TODAY1500'],
+                ['methodCode' => 'CAR_202602061400'],
+                ['methodCode' => 'VAN_202602061500'],
             ]);
 
         $this->observer->execute($observer);
@@ -82,11 +82,29 @@ class SubmitBeforeTest extends TestCase
 
     public function testThrowsWhenSelectedMethodNoLongerAvailable(): void
     {
-        $observer = $this->createObserverWithQuote('tradeaze_CAR_TODAY1400');
+        $observer = $this->createObserverWithQuote('tradeaze_CAR_202602061400');
 
         $this->getDeliveryQuote->method('execute')
             ->willReturn([
-                ['methodCode' => 'VAN_TODAY1500'],
+                ['methodCode' => 'VAN_202602061500'],
+            ]);
+
+        $this->expectException(ValidatorException::class);
+
+        $this->observer->execute($observer);
+    }
+
+    /**
+     * The code carries the quoted date, so an option still offered at the same time of day on
+     * a different date no longer satisfies the check - a relative TODAY/TOMORROW code did
+     */
+    public function testThrowsWhenTheSameTimeIsOnlyAvailableOnAnotherDate(): void
+    {
+        $observer = $this->createObserverWithQuote('tradeaze_CAR_202602061400');
+
+        $this->getDeliveryQuote->method('execute')
+            ->willReturn([
+                ['methodCode' => 'CAR_202602071400'],
             ]);
 
         $this->expectException(ValidatorException::class);
@@ -96,7 +114,7 @@ class SubmitBeforeTest extends TestCase
 
     public function testThrowsWhenNoMethodsAvailable(): void
     {
-        $observer = $this->createObserverWithQuote('tradeaze_CAR_TODAY1400');
+        $observer = $this->createObserverWithQuote('tradeaze_CAR_202602061400');
 
         $this->getDeliveryQuote->method('execute')
             ->willReturn([]);

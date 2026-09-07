@@ -3,6 +3,42 @@
 All notable changes to this module are recorded here. Versions follow
 [semantic versioning](https://semver.org/).
 
+## [1.1.1] - 2026-09-07
+
+### Deliveries are booked for the day that was quoted
+
+Orders recorded the chosen delivery window as "today" or "tomorrow" plus a time
+rather than as a date, and that was re-read when the delivery was sent to
+Tradeaze — so the day could change in between.
+
+Next working day quotes were never honoured as a result. A Friday quote offers
+Monday slots, but stored as "tomorrow" those became Saturday. Orders waiting in
+AWAITING PAYMENT were affected too, booking whichever day the payment cleared.
+
+Orders now record the quoted date.
+
+What you'll notice:
+
+- A Monday slot quoted on a Friday is delivered on the Monday, not the Saturday.
+- An order that waits over a weekend for payment still books the day it quoted.
+- Windows are recorded at their true start time. Previously every window was
+  stored 10 minutes late, so an 08:00-16:00 window read as starting 08:10.
+
+Unsent orders placed before upgrading still carry the old value and may book the
+wrong day, so it is worth clearing any backlog around the upgrade.
+
+### Upgrading
+
+```
+composer update tradeaze/magento2-tradeaze-integration
+bin/magento setup:upgrade
+bin/magento setup:di:compile
+bin/magento setup:static-content:deploy
+bin/magento cache:flush
+```
+
+No configuration changes needed.
+
 ## [1.1.0] - 2026-08-18
 
 ### Deliveries are no longer created until the order is paid
@@ -70,5 +106,6 @@ No configuration changes needed.
 
 First public release.
 
+[1.1.1]: https://github.com/tradeaze/magento2-tradeaze-integration/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/tradeaze/magento2-tradeaze-integration/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/tradeaze/magento2-tradeaze-integration/releases/tag/v1.0.0

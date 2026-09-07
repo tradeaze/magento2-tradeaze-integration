@@ -15,6 +15,7 @@ use Magento\Quote\Api\Data\CartInterface;
 use Magento\Quote\Model\Quote\Address as QuoteAddress;
 use Magento\Quote\Model\Quote\Item;
 use Tradeaze\ApiIntegration\Api\TradeazeEndpoints\Quote\GetDeliveryQuoteInterface;
+use Tradeaze\ApiIntegration\Model\Carrier\ShippingMethodCode;
 use Tradeaze\ApiIntegration\Model\TradeazeEndpoints\ClientAbstract;
 
 class GetDeliveryQuoteWithoutPickup extends ClientAbstract implements GetDeliveryQuoteInterface
@@ -75,21 +76,18 @@ class GetDeliveryQuoteWithoutPickup extends ClientAbstract implements GetDeliver
                     && (($now < $cutOffTime) || $methodData['deliveryDate'] != $now->format('Y-m-d'))
                 ) {
 
-                    // e.g. "2026-02-07T08:04:00.000Z"
+                    // e.g. "2026-02-07T08:00:00.000Z"
                     $windowStart = $this->timezone->date($methodData['windowStart']);
-                    $dataSuffix =
-                        $windowStart->format('Y-m-d') === $this->timezone->date()->format('Y-m-d')
-                        ? '_TODAY'
-                        : '_TOMORROW';
 
-                    // Add 10 minutes to avoid rejections and get HHMM
-                    $timePart = $windowStart->modify('+10 minutes')->format('Hi');
-
-                    $dataSuffix .= $timePart;
+                    /*
+                     * Store-local; CreateDraftOrder converts it to UTC. A start time that has
+                     * since passed is the API's to resolve, not ours.
+                     */
+                    $methodCode = ShippingMethodCode::forQuotedWindowStart($methodData['id'], $windowStart);
 
                     $methodPrice = $methodData['deliveryPrice']['amount'] + $methodData['serviceCharge']['amount'];
                     $methods[] = [
-                        'methodCode' => $methodData['id'] . $dataSuffix,
+                        'methodCode' => $methodCode->methodCode(),
                         'methodTitle' => $methodData['displayName'],
                         'methodPrice' => $methodPrice,
                         'methodCost' => $methodPrice,
