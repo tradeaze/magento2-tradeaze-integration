@@ -72,7 +72,20 @@ class CreateDeliveryTest extends TestCase
 
         $request = $this->buildRequest();
 
-        $this->assertSame(['postCode' => 'M1 1AA', 'type' => 'PICK_UP'], $request['pickup']);
+        $this->assertSame(
+            ['postCode' => 'M1 1AA', 'type' => 'PICK_UP', 'collectionReference' => '000000001'],
+            $request['pickup']
+        );
+    }
+
+    public function testSendsTheOrderNumberAsTheCollectionReferenceOnThePickupOnly(): void
+    {
+        $this->tradeaze->method('getPickUpDetails')->willReturn(['collectionReference' => null]);
+
+        $request = $this->buildRequest();
+
+        $this->assertSame('000000001', $request['pickup']['collectionReference']);
+        $this->assertArrayNotHasKey('collectionReference', $request['dropoff']);
     }
 
     private function buildRequest(): array

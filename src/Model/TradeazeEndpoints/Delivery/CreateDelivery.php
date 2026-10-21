@@ -19,6 +19,7 @@ class CreateDelivery extends CreateDraftOrder implements CreateDeliveryInterface
         $request = parent::buildRequest();
 
         $request['pickup'] = $this->tradeaze->getPickUpDetails($this->resolvedSource);
+        $request['pickup']['collectionReference'] = $this->params['request']->getIncrementId();
 
         return $request;
     }

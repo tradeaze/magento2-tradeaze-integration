@@ -69,7 +69,6 @@ class CreateDraftOrder extends ClientAbstract implements CreateDeliveryInterface
                 'contactName' => $shippingAddress->getName(),
                 'contactNumber' => $shippingAddress->getTelephone(),
                 'companyName' => $shippingAddress->getCompany(),
-                'collectionReference' => $requestObject->getIncrementId(),
                 /*
                  * The "requiresSignature" and "requiresImage" fields in the drop-off section of the API request
                  * are always set to true.
